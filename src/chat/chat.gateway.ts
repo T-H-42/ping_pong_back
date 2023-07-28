@@ -15,7 +15,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.6:3000'],
+    origin: ['http://10.15.1.4:3000'],
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
@@ -54,7 +54,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       console.log("handle_connn!!! in chat");
       const payload = await this.getPayload(socket);
       // console.log("handle_connn!!! in chat1");
-      await this.userService.connect_chat_Socket(payload.username, socket.id);
+      await this.userService.connectChatSocket(payload.username, socket.id);
       // console.log("handle_connn!!! in chat2");
       this.logger.log(`chat 채널 connect 호출: ${payload.username}  ${socket.id}`);
     }
@@ -73,7 +73,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.logger.log('chat 채널 Disconnect 호출');
     try {
       const payload = await this.getPayload(socket);
-      await this.userService.disConnect_chat_Socket(payload.username);
+      await this.userService.disconnectChatSocket(payload.username);
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`); // ping_pong의 소켓과 다를 것인데데... 관리 어떻게 해줘야 할지 설계필요!
     }
     catch (error) {
