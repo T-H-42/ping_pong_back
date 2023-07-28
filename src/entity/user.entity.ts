@@ -1,4 +1,4 @@
-import { Friend } from 'src/friend/friend.entity';
+import { Friend } from 'src/entity/friend.entity';
 import {
   BaseEntity,
   Column,
