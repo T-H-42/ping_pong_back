@@ -25,13 +25,14 @@ export class UserService {
 
   async signIn(loginDto: LoginDto, res: Response) {
     const { code } = loginDto;
+    console.log("code", code);
     //findOne
     // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
     const oauthConfig = config.get('oauth');
     console.log('======================================== sigin in ===============================');
     console.log('redir', oauthConfig.oauth_redirect_uri);
-    const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1&client_secret=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&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
+    const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${oauthConfig.oauth_id}&client_secret=${oauthConfig.oauth_secret}&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
       this.httpService.post(url).pipe(
         catchError((error:AxiosError) => {
@@ -40,8 +41,11 @@ export class UserService {
             console.log("test signin");
             throw new HttpException(error.response.data, error.response.status);
           }
-          else
+          else {
+            console.log("이 로그가 찍히면 42서버가 문제");
+            console.log(error);
             throw new InternalServerErrorException();
+          }
         })
       )
     )

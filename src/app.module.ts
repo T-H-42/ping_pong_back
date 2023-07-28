@@ -13,6 +13,7 @@ import { PingPongModule } from './ping_pong/ping_pong.module';
 import { ChatMuteModule } from './chat_mute/chat_mute.module';
 import { ChatBlockModule } from './chat_block/chat_block.module';
 import { ChatUserModule } from './chat_user/chat_user.module';
+import { GameModule } from './game/game.module';
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { ChatUserModule } from './chat_user/chat_user.module';
     PingPongModule,
     ChatMuteModule,
     ChatBlockModule,
-    ChatUserModule
+    ChatUserModule,
+    GameModule
   ],
   controllers: [AppController],
   providers: [AppService,], //FriendGatewayGateway, ChatGateway

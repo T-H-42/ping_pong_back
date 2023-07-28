@@ -17,10 +17,22 @@ export class User extends BaseEntity {
   username: string;
 
   @Column({ nullable: true })
-  socketid: string;
+  socketid: string; //sockid_pingpong
+
+  //@Column({ nullable: true })
+  //ladder_lv : number;
+
+
 
   @Column ({nullable : true})
-  chat_sockid : string;
+  chat_sockid : string; //sockid_chat
+
+  
+  //@Column ({nullable : true})
+  //sockid_game : string;
+
+  //@Column ({nullable : true})
+  //image_url : string;
 
   @Column({ nullable: true })
   email: string;
@@ -29,7 +41,7 @@ export class User extends BaseEntity {
   status: number;
 
   @Column({nullable: true})
-  two_factor_authentication_status: boolean;
+  two_factor_authentication_status: boolean; //two_factor_auth로 변경
 
   @Column({nullable: true})
   two_factor_authentication_code: number;
