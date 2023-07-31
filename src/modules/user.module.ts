@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-import { UserRepository } from './user.repository';
+import { UserController } from '../user/user.controller';
+import { UserService } from '../user/user.service';
+import { UserRepository } from '../user/user.repository';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import * as config from 'config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtStrategy } from './jwt.strategy';
+import { JwtStrategy } from '../user/jwt.strategy';
 import { AuthOptionsFactory, PassportModule } from '@nestjs/passport';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HttpModule } from '@nestjs/axios'; //HttpService

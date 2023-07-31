@@ -3,7 +3,7 @@ import { UserService } from './user.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { User } from './user.entity';
+import { User } from '../entity/user.entity';
 import { GetUser } from './get-user.dacorator';
 import { CertificateDto } from './dto/certificate.dto';
 import { HttpService } from '@nestjs/axios'; //HttpModule
@@ -11,34 +11,18 @@ import { HttpService } from '@nestjs/axios'; //HttpModule
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 
+///!!!!RESTful -> no verb,method use noun. 
+
+
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}//, private readonly httpService: HttpService
 
-  // @Post('/login')
-  // async login(@Body() testDto: TestDto) {
-  //   const { code } = testDto;
-  //   console.log('code = ',code);
-  //   const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1&client_secret=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&code=${code}&redirect_uri=http://10.15.1.6:3000/redirect`;
-
-  //   const { data } = await firstValueFrom(
-  //     this.httpService.post(url).pipe(
-  //       catchError((error:AxiosError) => {
-  //         throw 'An error happend!';
-  //       })
-  //     )
-  //   )
-  //   // const response = this.httpService.axiosRef.post(url);
-  //   console.log('accessToken = ', data); //response(asis)
-    
-  //   return data;
-  //   // return this.httpService.post(`https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1&client_secret=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&code=${code}&redirect_uri=http://10.15.1.6:3000/redirect`);
-  // }
 
   @Post('/signin')
-  signin(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
+  signIn(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
     console.log('signin 프로토콜 start');
-    return this.userService.signin(loginDto, res);
+    return this.userService.signIn(loginDto, res);
   }
 
   

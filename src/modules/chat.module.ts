@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from 'src/user/user.module';
-import { ChatGateway } from './chat.gateway';
+import { UserModule } from 'src/modules/user.module';
+import { ChatGateway } from '../gateway/chat.gateway';
 // import { UserService } from 'src/user/user.service';
 // import { TypeOrmModule } from '@nestjs/typeorm';
 // import { UserRepository } from 'src/user/user.repository';

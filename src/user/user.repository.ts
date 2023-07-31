@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { LoginDto } from './dto/login.dto';
-import { User } from './user.entity';
+import { User } from '../entity/user.entity';
 
 @Injectable()
 export class UserRepository extends Repository<User> {

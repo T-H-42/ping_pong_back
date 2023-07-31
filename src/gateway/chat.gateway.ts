@@ -15,7 +15,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.6:3000'],
+    origin: ['http://10.15.1.4:3000'],
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
@@ -54,7 +54,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       console.log("handle_connn!!! in chat");
       const payload = await this.getPayload(socket);
       // console.log("handle_connn!!! in chat1");
-      await this.userService.connect_chat_Socket(payload.username, socket.id);
+      await this.userService.connectChatSocket(payload.username, socket.id);
       // console.log("handle_connn!!! in chat2");
       this.logger.log(`chat 채널 connect 호출: ${payload.username}  ${socket.id}`);
     }
@@ -73,7 +73,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.logger.log('chat 채널 Disconnect 호출');
     try {
       const payload = await this.getPayload(socket);
-      await this.userService.disConnect_chat_Socket(payload.username);
+      await this.userService.disconnectChatSocket(payload.username);
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`); // ping_pong의 소켓과 다를 것인데데... 관리 어떻게 해줘야 할지 설계필요!
     }
     catch (error) {
@@ -126,9 +126,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return createdRooms;
   }
 
-
   // 채팅방(룸) 만들기
-  @SubscribeMessage('create-room')
+  @SubscribeMessage('create-room') //chat_room세팅 및 admin 테이블에 세팅
   async handleCreateRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
@@ -220,3 +219,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return await jwt.verify(token, secret) as any;
   }
 }
+
+
+/*
+
+dm chat을 분리. 이벤트,API 관리를 위해
+ft_JoinChatRoom -> 위의 채팅방 목록에 보여줌 (이미 구현된 상태.)
+ft_JoinDmRoom -> 대상이 되는 친구 chat_sockid 찾아서 socket.to(chat_sockid).emit(ft_JoinDmRoom) :: join room에 넣고, UI에서는 챗과 구별되게
+방 안에 있는 모양은 아니어야한다. 이벤트 자체는 Joinroom으로 처리하돼, 들어가기 누르면 그때, DM 방 안의 UI 보여야함. 가능한지 협의 -> 간단한 DM 상태 하나 세팅
+
+
+
+*/
