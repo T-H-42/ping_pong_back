@@ -2,9 +2,9 @@ jwt:
   secret: 'secret1234'
 
 oauth:
-  oauth_id: 'u-s4t2ud-933e31fc11cc47bb66644b03d56b1916ce728f0c3bc13a0b5da7656e43e56dc7'
-  oauth_secret: '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'
-  oauth_redirect_uri: 'http://10.15.1.4:3000/redirect'
+  oauth_id: 'b4804153b3af8bb056c9b190c687aacbe4ee6dfa17e8ba4932bb21a8d9426071'
+  oauth_secret: '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'
+  oauth_redirect_uri: 'http://10.15.1.5:3000/redirect'
 
 #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
 #   REACT_APP_OAUTH_ID=u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1

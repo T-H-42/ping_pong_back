@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Res, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards, ValidationPipe } from '@nestjs/common';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
@@ -40,7 +40,10 @@ export class UserController {
   // }
 
 
-//  @Get()
+  @Get('/profile')
+  getUserProfile(@Param() username: string) {
+	return this.getUserProfile(username);
+  }
   
 
 

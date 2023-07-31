@@ -49,9 +49,11 @@ export class UserService {
         })
       )
     )
+    console.log('======================================== sigin in2 ===============================');
     const headers = {
       Authorization: `Bearer ${data.access_token}`,
     };
+	console.log(data.access_token);
     const _url = 'https://api.intra.42.fr/v2/me';
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
@@ -69,25 +71,34 @@ export class UserService {
     // console.log('response username ', response.data.login);
     // console.log("========");
 
-    const user = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: {
         username: response.data.login
       },
     });
+	if (!user) {
+	  console.log("user doesn't exist");
+	  const _user = await this.userRepository.createUser(response.data.login, response.data.email);
+	  const _res = await this.setToken(_user, res);
+	  user = await this.userRepository.findOne({
+		where: {
+		  username: response.data.login
+		},
+	  });
+	}
     //////////////////////add///////////////////
     const payload = {
       username: user.username,
       id: user.id,
     };
+	console.log("===========");
+	console.log(user);
+	console.log("===========");
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
-    if (!user) {
-      console.log("user doesn't exist");
-      const _user = await this.userRepository.createUser(response.data.login, response.data.email);
-      const _res = await this.setToken(_user, res);
-      return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
-    }
+
+    
     if (user.two_factor_authentication_status===true) {
       // await this.sendMail(loginDto);
       console.log("user exist");
@@ -240,6 +251,11 @@ export class UserService {
     console.log(query);
     console.log("in chat_getusername");
     return await this.userRepository.query(query);
+  }
+
+  async getUserProfile(username: string) {
+	const query = await `select * from "user" where "username" = '${username}'`
+	return await this.userRepository.query(query);
   }
   ////-----------------------------------------------------------------------------------------------
 
