@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { PingPongGateway } from './ping_pong.gateway';
-import { UserModule } from 'src/user/user.module';
+import { PingPongGateway } from '../gateway/ping_pong.gateway';
+import { UserModule } from 'src/modules/user.module';
 import { FriendService } from 'src/friend/friend.service';
-import { FriendModule } from 'src/friend/friend.module';
+import { FriendModule } from 'src/modules/friend.module';
 // import { UserRepository } from 'src/user/user.repository';
 // import { UserService } from 'src/user/user.service';
 // import { TypeOrmModule } from '@nestjs/typeorm';
