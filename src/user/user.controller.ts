@@ -40,6 +40,8 @@ export class UserController {
   // }
 
 
+//  @Get()
+  
 
 
   // @Get('/friend')
