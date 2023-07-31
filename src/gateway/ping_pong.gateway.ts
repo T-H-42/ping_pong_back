@@ -72,7 +72,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
   }
 
-  @SubscribeMessage('ft_invitefriend') //front에서 친구추가 버튼 눌르면 발생시키는 이벤트
+  @SubscribeMessage('ft_invite_friend') //front에서 친구추가 버튼 눌르면 발생시키는 이벤트
   async inviteFriend (@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //친구추가는 채팅방에서 이루어지므로, 그때 채채팅팅방방의 userlist를 어차피 가지고 있을 텐데 반드시 그때 id를 준다. => data에는 무조건 id가 있다.
     const payload = await this.getPayload(socket);
     //DB에 저장
@@ -88,7 +88,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 //front
 
 
-  @SubscribeMessage('ft_accecptfriend') //front에서 친구추가를 수락한 친구가 보내는 이벤트
+  @SubscribeMessage('ft_accecpt_friend') //front에서 친구추가를 수락한 친구가 보내는 이벤트
   async accecptFriend(@ConnectedSocket() socket: Socket, @MessageBody() data: any) //반드시 친구추가를 보낸 사람의 id가 data에 포함되어서 와야함.
   {
     const payload = await this.getPayload(socket);
@@ -119,6 +119,11 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   // handleMessage(client: any, payload: any): string {
   //   return 'Hello world!';
   // }
+
+  ///////////////////////////친구 요청/////////////////////////
+  /*
+  
+  */
 }
 
 

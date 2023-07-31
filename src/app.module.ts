@@ -14,6 +14,7 @@ import { ChatMuteModule } from './modules/chat_mute.module';
 import { ChatBlockModule } from './modules/chat_block.module';
 import { ChatUserModule } from './modules/chat_user.module';
 import { GameModule } from './modules/game.module';
+import { ChatRoomModule } from './chat_room/chat_room.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { GameModule } from './modules/game.module';
     ChatMuteModule,
     ChatBlockModule,
     ChatUserModule,
-    GameModule
+    GameModule,
+    ChatRoomModule
   ],
   controllers: [AppController],
   providers: [AppService,], //FriendGatewayGateway, ChatGateway
