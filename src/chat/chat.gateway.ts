@@ -126,7 +126,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return createdRooms;
   }
 
-
   // 채팅방(룸) 만들기
   @SubscribeMessage('create-room')
   async handleCreateRoom(
@@ -220,3 +219,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return await jwt.verify(token, secret) as any;
   }
 }
+
+
+/*
+
+dm chat을 분리. 이벤트,API 관리를 위해
+ft_JoinChatRoom -> 위의 채팅방 목록에 보여줌 (이미 구현된 상태.)
+ft_JoinDmRoom -> 대상이 되는 친구 chat_sockid 찾아서 socket.to(chat_sockid).emit(ft_JoinDmRoom) :: join room에 넣고, UI에서는 챗과 구별되게
+방 안에 있는 모양은 아니어야한다. 들어가기 누르면 그때, DM 방 안의 UI 보여야함.
+
+*/
