@@ -74,24 +74,35 @@ export class UserService {
         username: response.data.login
       },
     });
+    //////////////////////add///////////////////
+    const payload = {
+      username: user.username,
+      id: user.id,
+    };
 
+    const accessToken = await this.jwtService.sign(payload);
+    //////////////////////add///////////////////
     if (!user) {
       console.log("user doesn't exist");
       const _user = await this.userRepository.createUser(response.data.login, response.data.email);
       const _res = await this.setToken(_user, res);
-      return (await _res).send({two_factor_authentication_status:false, username: _user.username})
+      return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
     }
     if (user.two_factor_authentication_status===true) {
       // await this.sendMail(loginDto);
       console.log("user exist");
       await this.sendMail(user.username);
-      return res.send({two_factor_authentication_status:true, username: user.username});
+      return res.send({two_factor_authentication_status:true, username: user.username,accessToken});
     }
+
+
+
     ////////////////////////////////////////////////////////////////////////////////////
     const responseWithToken = await this.setToken(user, res);
     // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
-    return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
-    // return test.send();
+    return responseWithToken.send({two_factor_authentication_status:false, username: user.username, accessToken});
+    //origin response
+    // return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
   }
 
   async setToken(user: User, res: Response) {
@@ -99,6 +110,7 @@ export class UserService {
       username: user.username,
       id: user.id,
     };
+
     const accessToken = await this.jwtService.sign(payload);
     await res.setHeader('Authorization', 'Bearer ' + accessToken);
     res.cookie('jwt', accessToken);
@@ -136,10 +148,24 @@ export class UserService {
     const { username, two_factor_authentication_code } = certificateDto;
     const user = await this.userRepository.findOne({where: {username}})
 
+    console.log("========");
+    console.log(typeof(user.two_factor_authentication_code), typeof(two_factor_authentication_code));
+    console.log("========");
+
     if (user.two_factor_authentication_code === two_factor_authentication_code) {
       // console.log("2way_auth_user", user);
       const test = await this.setToken(user, res);
-      return test.send();
+      //////////add_for_another_com///////
+      const payload = {
+        username: user.username,
+        id: user.id,
+      };
+
+      const accessToken = await this.jwtService.sign(payload);
+      //////////add_for_another_com///////
+      
+      
+      return test.send({accessToken});
       // return this.setToken(user.username, res);
     }
     else {
@@ -217,39 +243,39 @@ export class UserService {
   }
   ////-----------------------------------------------------------------------------------------------
 
-  async findFriendList(user: User): Promise<User[]> {
-    const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
-    where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
-    const result = await this.userRepository.query(query);
-    // console.log("============fr==========");
-    // console.log(result);
-    // console.log("============fr==========");
+  // async findFriendList(user: User): Promise<User[]> {
+  //   const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
+  //   where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
+  //   const result = await this.userRepository.query(query);
+  //   // console.log("============fr==========");
+  //   // console.log(result);
+  //   // console.log("============fr==========");
 
-    return result;
-  }
+  //   return result;
+  // }
 
-  async getFriendSocket(username: string): Promise<string[]> {
-    const user = await this.userRepository.findOne({
-      where: {
-        username
-      }})
-    if (!user)
-    {
-      console.log("???????????????????????????????????????");
-      console.log("???????????????????????????????????????");
-    }
-    const friend_list = await this.findFriendList(user);
+  // async getFriendSocket(username: string): Promise<string[]> {
+  //   const user = await this.userRepository.findOne({
+  //     where: {
+  //       username
+  //     }})
+  //   if (!user)
+  //   {
+  //     console.log("???????????????????????????????????????");
+  //     console.log("???????????????????????????????????????");
+  //   }
+  //   const friend_list = await this.findFriendList(user);
 
-    const friendSocketList:string[] = [];
-    friend_list.map((friend) => {
-      // console.log(friend);
-      if (friend.socketid !== null) {
-        friendSocketList.push(friend.socketid);
-      }
-    });
-    // console.log(friendSocketList);
-    return friendSocketList;
-  }//이거는 업데이트가 아니니레포지토리에서는 정의할필요없어보입니다.
+  //   const friendSocketList:string[] = [];
+  //   friend_list.map((friend) => {
+  //     // console.log(friend);
+  //     if (friend.socketid !== null) {
+  //       friendSocketList.push(friend.socketid);
+  //     }
+  //   });
+  //   // console.log(friendSocketList);
+  //   return friendSocketList;
+  // }//이거는 업데이트가 아니니레포지토리에서는 정의할필요없어보입니다.
   ////-----------------------------------------------------------------------------------------------
 
 
