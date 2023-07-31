@@ -254,7 +254,7 @@ export class UserService {
   }
 
   async getUserProfile(username: string) {
-	const query = await `select * from "user" where "username" = '${username}'`
+	const query = await `select * from "user" where "username" = '${username}';`
 	return await this.userRepository.query(query);
   }
   ////-----------------------------------------------------------------------------------------------
