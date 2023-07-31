@@ -30,7 +30,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       this.logger.log("====ping_nsp_입장====");
       const payload = await this.getPayload(socket);
       await this.userService.connectPingPongSocket(payload.username, socket.id);
-      const socketList = await this.userService.getFriendSocket(payload.username);
+      const socketList = await this.friendService.getFriendSocket(payload.username);
       if (socketList.length === 0) {
         console.log("-=-=-=-=-=-=-=-=-=-=-=-=-==-=");
         return ;
@@ -54,7 +54,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     try {
       const payload = await this.getPayload(socket);
       await this.userService.disconnectPingPongSocket(payload.username);
-      const socketList = await this.userService.getFriendSocket(payload.username);
+      const socketList = await this.friendService.getFriendSocket(payload.username);
       if (socketList.length === 0) {
         console.log("-=-=-=-=-=-=-=-=-=-=-=-=-==-=");
         return ;

@@ -33,11 +33,11 @@ export class UserController {
     return this.userService.certificateUser(certificateDto, res);
   }
 
-  @Get('/allfriend')
-  @UseGuards(AuthGuard())
-  getAllFriend(@GetUser() user: User): Promise<User[]> {
-    return this.userService.findFriendList(user);
-  }
+  // @Get('/allfriend')
+  // @UseGuards(AuthGuard())
+  // getAllFriend(@GetUser() user: User): Promise<User[]> {
+  //   return this.userService.findFriendList(user);
+  // }
 
 
 
