@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
@@ -11,13 +21,11 @@ import { HttpService } from '@nestjs/axios'; //HttpModule
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 
-///!!!!RESTful -> no verb,method use noun. 
-
+///!!!!RESTful -> no verb,method use noun.
 
 @Controller('user')
 export class UserController {
-  constructor(private userService: UserService) {}//, private readonly httpService: HttpService
-
+  constructor(private userService: UserService) {} //, private readonly httpService: HttpService
 
   @Post('/signin')
   signIn(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
@@ -25,11 +33,12 @@ export class UserController {
     return this.userService.signIn(loginDto, res);
   }
 
-  
   @Post('/certificate')
-  certificateUser(@Body() certificateDto: CertificateDto, @Res() res: Response)
-  {
-    console.log("test_certificate");
+  certificateUser(
+    @Body() certificateDto: CertificateDto,
+    @Res() res: Response,
+  ) {
+    console.log('test_certificate');
     return this.userService.certificateUser(certificateDto, res);
   }
 
@@ -39,33 +48,30 @@ export class UserController {
   //   return this.userService.findFriendList(user);
   // }
 
-
   @Get('/profile')
-  getUserProfile(@Param() username: string) {
-	return this.getUserProfile(username);
+  async getUserProfile(@Query('username') username: string) {
+    return await this.userService.getUserProfile(username);
   }
-  
-
 
   // @Get('/friend')
   // @UseGuards(AuthGuard())
   // findFriendList(@GetUser() user: User) {
-  // 	return this.authService.findFriendList(user);
+  //  return this.authService.findFriendList(user);
   // }
 
   ///ㄱㅣ조ㄴ의 쿼쿼리리문문입입니니다. (user.service)
 
   // async findFriendList(user: User) {
-  // 	const query = this.userRepository.createQueryBuilder('user');
-  // 	query
-  // 		.leftJoin('user.friend_one', 'friend')
-  // 		.leftJoin('user.friend_two', 'friend2')
-  // 		.where('friend.status = true AND friend.user_two = :userId')
-  // 		.orWhere('friend2.status = true AND friend2.user_one = :userId')
-  // 		.setParameter('userId', user.id)
-  // 		.select('user');
+  //  const query = this.userRepository.createQueryBuilder('user');
+  //  query
+  //    .leftJoin('user.friend_one', 'friend')
+  //    .leftJoin('user.friend_two', 'friend2')
+  //    .where('friend.status = true AND friend.user_two = :userId')
+  //    .orWhere('friend2.status = true AND friend2.user_one = :userId')
+  //    .setParameter('userId', user.id)
+  //    .select('user');
 
-  // 	const result = await query.getRawMany();
-  // 	return result;
+  //  const result = await query.getRawMany();
+  //  return result;
   // }
 }
