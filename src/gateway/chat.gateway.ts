@@ -4,14 +4,16 @@ import { Namespace, Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
 import * as config from 'config';
 import { UserService } from 'src/user/user.service';
+import { Chat_Room } from 'src/entity/chat_room.entity';
+import { ChatRoomService } from 'src/chat_room/chat_room.service';
 
 interface MessagePayload {
   roomName: string;
   message: string;
 }
 
-let createdRooms: string[] = [];
 
+let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
@@ -20,7 +22,8 @@ let createdRooms: string[] = [];
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   constructor(
-    private userService: UserService
+    private userService: UserService,
+    private chatRoomService: ChatRoomService,
   ) { }
  
   private logger = new Logger('Gateway');
@@ -95,27 +98,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         console.log("payloaderr in msg");
         return error;
       }
-    // const query = await this.userService.chat_GetUserName(socket.id);
-    // this.logger.log("query test");
-    // this.logger.log(query);
-    // this.logger.log("query test");
 
-    // this.logger.log("msg test");
-    // this.logger.log(message);
-    // this.logger.log("msg test");
-
-    // this.logger.log("room name");
-    // this.logger.log(roomName);
-    // this.logger.log("room name");
-
-    // socket.broadcast.to(roomName).emit('message', { 
-    //   username: query.username,
-    //   message
-    //  });
     await socket.broadcast.to(roomName).emit('ft_message', {
       username: `${payload.username}`,
       message
     });
+    
     return { username: payload.username, message };
   }
 
@@ -181,7 +169,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         message: `님이 ${roomName}에 참가했습니다.`
       });
 
-      return { success: true };
+      return { success: true }; //
   }
 
   // 채팅방(룸) 탈주
@@ -218,7 +206,102 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const secret = serverConfig.secret;
     return await jwt.verify(token, secret) as any;
   }
+
+  @SubscribeMessage('ft_dm_invitation')
+  async handleJoinDm(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() userName: string,
+  ) {
+    this.logger.log('dm 입장하기 호출: ', socket.id);
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+    } catch (error) { //나중에 throw 로 교체
+      return error;
+    }
+    //////////////dm room 이름 고유값 설정
+      let arr= [];
+      arr.push(userName);
+      arr.push(payload.username);
+      arr.sort();
+      let roomName = arr.join()
+      //////////////dm room 이름 고유값 설정
+      
+      
+      socket.join(roomName);
+      const friend_sock= await this.userService.getChatSocketByUserName(userName);
+      let roomUserSocks = [];
+      roomUserSocks.push(friend_sock[0].chat_sockid);
+      roomUserSocks.push(socket.id);
+      let friend_socks = [];
+      friend_socks.push(friend_sock[0].chat_sockid);
+
+      const requestUser = await this.userService.getUserByUserName(payload.username);
+      const userId = requestUser.id;
+
+      const responseUser = await this.userService.getUserByUserName(userName);
+      const resUserId = responseUser.id;
+
+
+      ///유효성 검증 부분 추가되어야 함.
+      const isExist = await this.chatRoomService.isExist(roomName);
+      if (isExist === true)
+      {
+        console.log("error!! -> status를 false로 줄 예정!");
+        return ;
+      }
+      else
+      {
+        console.log("in is Exist False??", isExist);
+        await this.chatRoomService.createDmRoom(userId, roomName);
+        await this.chatRoomService.joinUserToRoom(userId, roomName);
+        await this.chatRoomService.joinUserToRoom(resUserId, roomName); ////상대에게 넣어줌
+      }
+      /////db 유효성 검증 및 저장
+      //`insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, chat_title) values (${userid 찾은 다음주기}, 3, null, 2, 1, ${roomName});`
+      /////
+      this.nsp.to(roomUserSocks).emit('create-dm', roomName);
+
+      socket.broadcast.to(friend_socks).emit('ft_dm_invited', {
+        username: `${userName}`,
+        message: `emit 님이 ${roomName}에 참가했습니다.`
+      }); //수신 클클라라이이언트에게
+      return { username: `${userName}`, message: `return 님이 ${roomName}에 참가했습니다.`}; //발신 클클라라이이언트에게
+      //return { success: true, payload: roomName };
+  }
+  
+  @SubscribeMessage('dm-list')
+  async handleDmList(
+    @ConnectedSocket() socket: Socket,
+    ) {
+    this.logger.log('dm 목록 반환하기 호출');
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+    } catch (error) { //나중에 throw 로 교체
+      return error;
+    }
+    const requestUser = await this.userService.getUserByUserName(payload.username);
+    const userId = requestUser.id;
+    const tempDmList = await this.chatRoomService.dmListByUserName(userId);
+    let dmList = tempDmList.map(i => i.chat_title);
+  
+    console.log(".====dmlist====");
+    console.log(dmList);
+    console.log(".====dmlist====");
+
+    return dmList;
+  }
+
+  // @SubscribeMessage('create-dm-room')
+  // async handleCreateDm(
+  //   @ConnectedSocket() socket: Socket,
+  //   @MessageBody() userName: string,
+  // ) {
+  //   this.nsp.emit('create-room', roomName);
+  // }
 }
+
 
 
 /*
@@ -227,7 +310,5 @@ dm chat을 분리. 이벤트,API 관리를 위해
 ft_JoinChatRoom -> 위의 채팅방 목록에 보여줌 (이미 구현된 상태.)
 ft_JoinDmRoom -> 대상이 되는 친구 chat_sockid 찾아서 socket.to(chat_sockid).emit(ft_JoinDmRoom) :: join room에 넣고, UI에서는 챗과 구별되게
 방 안에 있는 모양은 아니어야한다. 이벤트 자체는 Joinroom으로 처리하돼, 들어가기 누르면 그때, DM 방 안의 UI 보여야함. 가능한지 협의 -> 간단한 DM 상태 하나 세팅
-
-
 
 */

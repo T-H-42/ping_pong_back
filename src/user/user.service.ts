@@ -208,25 +208,6 @@ export class UserService {
     await this.userRepository.update({ username }, { chat_sockid: null });
   }
 
-  
-
-  //
-  /*
-  {
-    f_id : 4,
-    id : 4,
-    ladder_lv : 1000,
-    status : 1,
-    two_factor_auth : true,
-    sockid_pingpong : ~!#$@#!$#@ddfd,
-    sockid_chat : %@#$%$,
-    sockid_game : !@#$%#$,
-    image_url : http://~~~~~,
-    two_factor_authentication_code : 123456
-    username : "hyna",
-  }
-  f_id 는 id와 같습니다.
-  */ 
 
 
   async getUserByPingPongSocketId(id: number) {
@@ -239,6 +220,12 @@ export class UserService {
     console.log("in chat_getusername");
     console.log(query);
     console.log("in chat_getusername");
+    return await this.userRepository.query(query);
+  }
+
+  async getChatSocketByUserName(username : string) 
+  {
+    const query = await `select "chat_sockid" from "user" where "username" = '${username}';`;
     return await this.userRepository.query(query);
   }
   ////-----------------------------------------------------------------------------------------------
