@@ -17,13 +17,6 @@ export class ChatRoomService {
         const queryList = await this.chatRoomRepository.query(query);
         if (queryList.length === 0)
             return false;
-<<<<<<< HEAD
-=======
-        console.log("-----exist-----");
-        console.log(queryList)
-        console.log(queryList.length)
-        console.log("-----exist-----");
->>>>>>> 59197812b0f73a0ae8d4f5d1d416cdb792be0f1f
         return true;
     }
 
