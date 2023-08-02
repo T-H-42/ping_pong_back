@@ -6,7 +6,9 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   ValidationPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -20,6 +22,7 @@ import { HttpService } from '@nestjs/axios'; //HttpModule
 // import { TestDto } from './dto/test.dto';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 ///!!!!RESTful -> no verb,method use noun.
 
@@ -49,8 +52,19 @@ export class UserController {
   // }
 
   @Get('/profile')
+  @UseGuards(AuthGuard())
   async getUserProfile(@Query('username') username: string) {
     return await this.userService.getUserProfile(username);
+  }
+
+  @UseInterceptors(FileInterceptor('image'))
+  @Post('/profile/upload')
+  @UseGuards(AuthGuard())
+  async uploadProfileImage(
+    @GetUser() user: User,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return await this.userService.uploadProfileImage(user.username, image);
   }
 
   // @Get('/friend')

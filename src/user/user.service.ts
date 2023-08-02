@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -280,6 +281,19 @@ export class UserService {
     );
     return await userProfile;
   }
+
+  async uploadProfileImage(username: string, image: Express.Multer.File) {
+    if (!image) {
+      throw new BadRequestException();
+    }
+    const imageUpdate = await this.userRepository.updateProfileImage(
+      username,
+      image.filename,
+    );
+    if (!imageUpdate.affected) throw new UnauthorizedException();
+    return 'succeed';
+  }
+
   ////-----------------------------------------------------------------------------------------------
 
   // async findFriendList(user: User): Promise<User[]> {
