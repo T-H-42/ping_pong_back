@@ -50,7 +50,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.logger.log('Websock_server_init');
   }
 
-  // 채널(네임스페이스) 연결
+  ////////////////////////////////////// - channel dis/connection - start //////////////////////////////////////
   async handleConnection(@ConnectedSocket() socket: Socket) {
     try {
       console.log("handle_connn!!! in chat");
@@ -77,7 +77,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       console.log('get payload err');
     }
   }
+////////////////////////////////////// - channel dis/connection - end //////////////////////////////////////
 
+  
   // 채팅방(룸)에 메세지 보내기
   @SubscribeMessage('ft_message')
   async handleMessage(  //정상동작으로 만든 뒤, 함수명만 바꿔서 잘 동작하는 지 확인(handleMessage가 예약어인지 확인 필요)
@@ -152,11 +154,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       } catch (error) { //나중에 throw 로 교체
         return error;
       }
-      console.log(payload.username, ' ', socket.id);
-
-    // const query = await this.userService.chat_GetUserName(socket.id);
-    // console.log('query:??? ', query);
-    // console.log(socket.id);
+      // console.log(payload.username, ' ', socket.id);
 
       socket.broadcast.to(roomName).emit('ft_message', {
         username: `${payload.username}`,
@@ -187,20 +185,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return { success: true };
   }
 
-  //겟 페이로드
-  // async getPayload(socket: Socket) {
-  //   const token = await socket.handshake.auth.token;
-  //   // this.logger.log("======chat token in get payload=======");
-  //   this.logger.log(token);
-  //   // this.logger.log("======chat token in get payload=======");
-  //   const serverConfig = config.get('jwt');
-  //   const secret = serverConfig.secret;
-  //   return await jwt.verify(token, secret) as any;
-  // }
 
 
-
-  ////////////////////////////////////////
+////////////////////////////////////// - DM Scope - start //////////////////////////////////////
   @SubscribeMessage('ft_dm_invitation')
   async handleInvitationDm(
     @ConnectedSocket() socket: Socket,
@@ -220,11 +207,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       arr.sort();
       let roomName = arr.join()
     //////////////dm room 이름 고유값 설정
-      
-      
-      // socket.join(roomName);
-      const friend_sock= await this.userService.getChatSocketByUserName(userName);
-      let roomUserSocks = [];
+      const friend_sock= await this.userService.getChatSocketByUserName(userName); // 대상의 socket 가져오기
+      let roomUserSocks = [];                                                      // room에 포함된 유저의 소켓에 전부
       roomUserSocks.push(friend_sock[0].chat_sockid);
       roomUserSocks.push(socket.id);
       let friend_socks = [];
@@ -250,7 +234,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         await this.chatRoomService.joinUserToRoom(resUserId, roomName); ////상대에게 넣어줌
       }
       
-      
       // this.nsp.to(roomUserSocks).emit('create-dm', {
       //   roomname:`${roomName}`,
       //   // username: userName,
@@ -259,13 +242,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       //   success : true
       // }); //create-dm 이벤트를 통해 프론트에 룸 생성 된 것 표기!
 
-      socket.broadcast.to(friend_socks).emit('ft_dm_invitation', {
+      socket.broadcast.to(friend_socks).emit('ft_dm_invitation', { //emit -> 수신 클라이언트에게!
         username: `${payload.username}`,
         chat_title: `${roomName}`,
         success : true
-      }); //수신 클클라라이이언트에게
-      return { username: `${userName}`, chat_title: `${roomName}`, success : true}; //발신 클클라라이이언트에게
-      //return { success: true, payload: roomName };
+      }); 
+      return { username: `${userName}`, chat_title: `${roomName}`, success : true}; //return -> 발신 클라이언트에게!
   }
   
   @SubscribeMessage('dm-list')
@@ -309,6 +291,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       }
       return { success: true };
   }
+////////////////////////////////////// - DM Scope - end //////////////////////////////////////
+
 
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
