@@ -52,7 +52,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
   // 채널(네임스페이스) 연결
   async handleConnection(@ConnectedSocket() socket: Socket) {
-    // this.logger.log(`${socket.id} Sock연결 시`); // ping_pong의 소켓과 다를 것인데데... 관리 어떻게 해줘야 할지 설계필요!
     try {
       console.log("handle_connn!!! in chat");
       const payload = await this.getPayload(socket);
@@ -64,11 +63,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     catch (error) {
       this.logger.error('1. validate_token fail in chat', error);
     }
-    // this.logger.log(`${socket.id} Db작업 후`); // ping_pong의 소켓과 다를 것인데데... 관리 어떻게 해줘야 할지 설계필요!
-
-    // socket.broadcast.emit('chatconnect', {
-    //   test:"test"
-    // });
   }
 
   // 채널(네임스페이스) 탈주
@@ -191,24 +185,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       message: `님이 ${roomName}에서 나갔습니다`
     });
     return { success: true };
-    // const query = await this.userService.chat_GetUserName(socket.id);
-    // socket.broadcast.to(roomName).emit('ft_message', { message: `asia07701A ${payload.username}가 나갔습니다.` });
-    // return { success: true };
   }
 
   //겟 페이로드
-  async getPayload(socket: Socket) {
-    const token = await socket.handshake.auth.token;
-    this.logger.log("======chat token in get payload=======");
-    this.logger.log(token);
-    this.logger.log("======chat token in get payload=======");
-    const serverConfig = config.get('jwt');
-    const secret = serverConfig.secret;
-    return await jwt.verify(token, secret) as any;
-  }
+  // async getPayload(socket: Socket) {
+  //   const token = await socket.handshake.auth.token;
+  //   // this.logger.log("======chat token in get payload=======");
+  //   this.logger.log(token);
+  //   // this.logger.log("======chat token in get payload=======");
+  //   const serverConfig = config.get('jwt');
+  //   const secret = serverConfig.secret;
+  //   return await jwt.verify(token, secret) as any;
+  // }
 
+
+
+  ////////////////////////////////////////
   @SubscribeMessage('ft_dm_invitation')
-  async handleJoinDm(
+  async handleInvitationDm(
     @ConnectedSocket() socket: Socket,
     @MessageBody() userName: string,
   ) {
@@ -225,10 +219,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       arr.push(payload.username);
       arr.sort();
       let roomName = arr.join()
-      //////////////dm room 이름 고유값 설정
+    //////////////dm room 이름 고유값 설정
       
       
-      socket.join(roomName);
+      // socket.join(roomName);
       const friend_sock= await this.userService.getChatSocketByUserName(userName);
       let roomUserSocks = [];
       roomUserSocks.push(friend_sock[0].chat_sockid);
@@ -242,13 +236,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       const responseUser = await this.userService.getUserByUserName(userName);
       const resUserId = responseUser.id;
 
-
-      ///유효성 검증 부분 추가되어야 함.
       const isExist = await this.chatRoomService.isExist(roomName);
       if (isExist === true)
       {
         console.log("error!! -> status를 false로 줄 예정!");
-        return ;
+        return { username:null, chat_title: null, success: false };
       }
       else
       {
@@ -257,16 +249,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         await this.chatRoomService.joinUserToRoom(userId, roomName);
         await this.chatRoomService.joinUserToRoom(resUserId, roomName); ////상대에게 넣어줌
       }
-      /////db 유효성 검증 및 저장
-      //`insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, chat_title) values (${userid 찾은 다음주기}, 3, null, 2, 1, ${roomName});`
-      /////
-      this.nsp.to(roomUserSocks).emit('create-dm', roomName);
+      
+      
+      // this.nsp.to(roomUserSocks).emit('create-dm', {
+      //   roomname:`${roomName}`,
+      //   // username: userName,
+      //   sender:`${payload.username}`,
+      //   receiver:`${userName}`,
+      //   success : true
+      // }); //create-dm 이벤트를 통해 프론트에 룸 생성 된 것 표기!
 
-      socket.broadcast.to(friend_socks).emit('ft_dm_invited', {
-        username: `${userName}`,
-        message: `emit 님이 ${roomName}에 참가했습니다.`
+      socket.broadcast.to(friend_socks).emit('ft_dm_invitation', {
+        username: `${payload.username}`,
+        chat_title: `${roomName}`,
+        success : true
       }); //수신 클클라라이이언트에게
-      return { username: `${userName}`, message: `return 님이 ${roomName}에 참가했습니다.`}; //발신 클클라라이이언트에게
+      return { username: `${userName}`, chat_title: `${roomName}`, success : true}; //발신 클클라라이이언트에게
       //return { success: true, payload: roomName };
   }
   
@@ -284,7 +282,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const requestUser = await this.userService.getUserByUserName(payload.username);
     const userId = requestUser.id;
     const tempDmList = await this.chatRoomService.dmListByUserName(userId);
-    let dmList = tempDmList.map(i => i.chat_title);
+    // let dmList = tempDmList.map(i => i.chat_title);
+    let dmList = tempDmList.map(i => i);
+
   
     console.log(".====dmlist====");
     console.log(dmList);
@@ -293,13 +293,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return dmList;
   }
 
-  // @SubscribeMessage('create-dm-room')
-  // async handleCreateDm(
-  //   @ConnectedSocket() socket: Socket,
-  //   @MessageBody() userName: string,
-  // ) {
-  //   this.nsp.emit('create-room', roomName);
-  // }
+  @SubscribeMessage('join-dm')
+  async handleJoinDm(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() roomName: string,
+  ) {
+      this.logger.log('dm 목록 반환하기 호출');
+      let payload;
+      try {
+        payload = await this.getPayload(socket);
+        console.log("join event");
+        socket.join(roomName);
+      } catch (error) { //나중에 throw 로 교체
+        return { success: false };
+      }
+      return { success: true };
+  }
+
+  async getPayload(socket: Socket) {
+    const token = await socket.handshake.auth.token;
+    // this.logger.log("======chat token in get payload=======");
+    this.logger.log(token);
+    // this.logger.log("======chat token in get payload=======");
+    const serverConfig = config.get('jwt');
+    const secret = serverConfig.secret;
+    return await jwt.verify(token, secret) as any;
+  }
 }
 
 
