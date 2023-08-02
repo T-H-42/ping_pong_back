@@ -4,8 +4,8 @@ import { ChatRoomController } from './chat_room.controller';
 import { ChatRoomRepository } from './chat_room.repository';
 
 @Module({
-  providers: [ChatRoomService,ChatRoomRepository],
+  providers: [ChatRoomService,ChatRoomRepository],//
   controllers: [ChatRoomController],
-  exports: [ChatRoomService]
+  exports:[ChatRoomService]
 })
 export class ChatRoomModule {}

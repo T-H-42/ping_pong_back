@@ -9,7 +9,7 @@ import { ChatRoomModule } from 'src/chat_room/chat_room.module';
 // import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-	imports:[UserModule, ChatRoomModule /*TypeOrmModule.forFeature([UserRepository]), HttpModule, JwtModule*/], // TypeOrmModule.forFeature([UserRepository]), HttpModule, JwtModule
+	imports:[UserModule, ChatRoomModule/*TypeOrmModule.forFeature([UserRepository]), HttpModule, JwtModule*/], // TypeOrmModule.forFeature([UserRepository]), HttpModule, JwtModule
 	providers:[ChatGateway, /*UserRepository,JwtModule,UserService*/], //UserRepository JwtModule UserService
 })
 export class ChatModule {}

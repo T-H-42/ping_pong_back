@@ -208,6 +208,25 @@ export class UserService {
     await this.userRepository.update({ username }, { chat_sockid: null });
   }
 
+  
+
+  //
+  /*
+  {
+    f_id : 4,
+    id : 4,
+    ladder_lv : 1000,
+    status : 1,
+    two_factor_auth : true,
+    sockid_pingpong : ~!#$@#!$#@ddfd,
+    sockid_chat : %@#$%$,
+    sockid_game : !@#$%#$,
+    image_url : http://~~~~~,
+    two_factor_authentication_code : 123456
+    username : "hyna",
+  }
+  f_id 는 id와 같습니다.
+  */ 
 
 
   async getUserByPingPongSocketId(id: number) {
@@ -222,12 +241,47 @@ export class UserService {
     console.log("in chat_getusername");
     return await this.userRepository.query(query);
   }
+  ////-----------------------------------------------------------------------------------------------
 
-  async getChatSocketByUserName(username : string) 
+  // async findFriendList(user: User): Promise<User[]> {
+  //   const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
+  //   where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
+  //   const result = await this.userRepository.query(query);
+  //   // console.log("============fr==========");
+  //   // console.log(result);
+  //   // console.log("============fr==========");
+
+  //   return result;
+  // }
+
+  // async getFriendSocket(username: string): Promise<string[]> {
+  //   const user = await this.userRepository.findOne({
+  //     where: {
+  //       username
+  //     }})
+  //   if (!user)
+  //   {
+  //     console.log("???????????????????????????????????????");
+  //     console.log("???????????????????????????????????????");
+  //   }
+  //   const friend_list = await this.findFriendList(user);
+
+  //   const friendSocketList:string[] = [];
+  //   friend_list.map((friend) => {
+  //     // console.log(friend);
+  //     if (friend.socketid !== null) {
+  //       friendSocketList.push(friend.socketid);
+  //     }
+  //   });
+  //   // console.log(friendSocketList);
+  //   return friendSocketList;
+  // }//이거는 업데이트가 아니니레포지토리에서는 정의할필요없어보입니다.
+  ////-----------------------------------------------------------------------------------------------
+  async getChatSocketByUserName(username : string)
   {
     const query = await `select "chat_sockid" from "user" where "username" = '${username}';`;
     return await this.userRepository.query(query);
   }
-  ////-----------------------------------------------------------------------------------------------
+
 
 }
