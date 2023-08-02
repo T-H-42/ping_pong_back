@@ -71,7 +71,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const payload = await this.getPayload(socket);
       await this.userService.disconnectChatSocket(payload.username);
-      this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`); // ping_pong의 소켓과 다를 것인데데... 관리 어떻게 해줘야 할지 설계필요!
+      this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     }
     catch (error) {
       console.log('get payload err');
@@ -208,27 +208,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       let roomName = arr.join()
     //////////////dm room 이름 고유값 설정
       const friend_sock= await this.userService.getChatSocketByUserName(userName); // 대상의 socket 가져오기
-      let roomUserSocks = [];                                                      // room에 포함된 유저의 소켓에 전부
+      let roomUserSocks = [];                                                      // room에 포함된 유저의 소켓을 배열에 담을 것.
       roomUserSocks.push(friend_sock[0].chat_sockid);
       roomUserSocks.push(socket.id);
       let friend_socks = [];
-      friend_socks.push(friend_sock[0].chat_sockid);
+      friend_socks.push(friend_sock[0].chat_sockid);                              // broadcast.to([friend_sock.chat_sockid]) -> 이런식으로 주면 소켓통신이 되지 않는 이슈가 있어 배열에 담아서 리턴!
 
-      const requestUser = await this.userService.getUserByUserName(payload.username);
+      const requestUser = await this.userService.getUserByUserName(payload.username); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
       const userId = requestUser.id;
 
       const responseUser = await this.userService.getUserByUserName(userName);
       const resUserId = responseUser.id;
 
-      const isExist = await this.chatRoomService.isExist(roomName);
+      const isExist = await this.chatRoomService.isExist(roomName);               // 방이 있는지 DB에 유효성 체크
       if (isExist === true)
       {
-        console.log("error!! -> status를 false로 줄 예정!");
+        console.log("already exist room!");
         return { username:null, chat_title: null, success: false };
       }
       else
       {
-        console.log("in is Exist False??", isExist);
+        console.log("make room, join", isExist);
         await this.chatRoomService.createDmRoom(userId, roomName);
         await this.chatRoomService.joinUserToRoom(userId, roomName);
         await this.chatRoomService.joinUserToRoom(resUserId, roomName); ////상대에게 넣어줌
@@ -261,11 +261,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     } catch (error) { //나중에 throw 로 교체
       return error;
     }
-    const requestUser = await this.userService.getUserByUserName(payload.username);
+    const requestUser = await this.userService.getUserByUserName(payload.username); // 마찬가지로 아래 쿼리에서 id 사용을 원해서 사용한 함수.
     const userId = requestUser.id;
-    const tempDmList = await this.chatRoomService.dmListByUserName(userId);
+    const tempDmList = await this.chatRoomService.dmListByUserName(userId); 
     // let dmList = tempDmList.map(i => i.chat_title);
-    let dmList = tempDmList.map(i => i);
+    let dmList = tempDmList.map(i => i); // 쿼리의 변경으로 인해 객체들을 전달하니까 이 부분은 필요없이 즉시 tempDmList를 반환하면 될 것 같기도 함.
 
   
     console.log(".====dmlist====");
