@@ -21,7 +21,6 @@ export class ChatRoomService {
         console.log(queryList)
         console.log(queryList.length)
         console.log("-----exist-----");
-
         return true;
     }
 
