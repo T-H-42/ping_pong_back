@@ -27,12 +27,12 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async handleConnection(@ConnectedSocket() socket: Socket) {
     this.logger.log('ping-pong 채널 connect 호출: ', socket.id);
     try {
-      this.logger.log("====ping_nsp_입장====");
+      // this.logger.log("====ping_nsp_입장====");
       const payload = await this.getPayload(socket);
       await this.userService.connectPingPongSocket(payload.username, socket.id);
       const socketList = await this.friendService.getFriendSocket(payload.username);
       if (socketList.length === 0) {
-        console.log("-=-=-=-=-=-=-=-=-=-=-=-=-==-=");
+        // console.log("-=-=-=-=-=-=-=-=-=-=-=-=-==-=");
         return ;
       }
       //const socketList = await friendlist.socketid.map(user => user.user_socketid);
@@ -44,7 +44,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       });
     }
     catch(error) {
-      console.log("in ping_pong channel");
+      // console.log("in ping_pong channel");
       this.logger.error('1. validate_token fail in ping', error);
     }
     // const token = socket.handshake.auth.token;
@@ -107,9 +107,9 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async getPayload(socket: Socket)
   {
     const token = await socket.handshake.auth.token;
-    this.logger.log("======ping token in get payload=======");
-    this.logger.log(token);
-    this.logger.log("======ping token in get payload=======");
+    // this.logger.log("======ping token in get payload=======");
+    // this.logger.log(token);
+    // this.logger.log("======ping token in get payload=======");
     const serverConfig = config.get('jwt');
     const secret = serverConfig.secret;
     return await jwt.verify(token, secret) as any;

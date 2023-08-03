@@ -74,6 +74,21 @@ export class UserService {
         username: response.data.login
       },
     });
+    if (!user) {
+      console.log("user doesn't exist");
+      const _user = await this.userRepository.createUser(response.data.login, response.data.email);
+      //////////////////////add///////////////////
+      const payload = {
+        username: _user.username,
+        id: _user.id,
+      };
+
+      const accessToken = await this.jwtService.sign(payload);
+      //////////////////////add///////////////////
+      const _res = await this.setToken(_user, res);
+      return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
+    }
+
     //////////////////////add///////////////////
     const payload = {
       username: user.username,
@@ -82,12 +97,7 @@ export class UserService {
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
-    if (!user) {
-      console.log("user doesn't exist");
-      const _user = await this.userRepository.createUser(response.data.login, response.data.email);
-      const _res = await this.setToken(_user, res);
-      return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
-    }
+
     if (user.two_factor_authentication_status===true) {
       // await this.sendMail(loginDto);
       console.log("user exist");
@@ -187,7 +197,14 @@ export class UserService {
     await this.userRepository.query(query);
   }
 
+  async connectGameSocket(username: string, socketid: string) { //connectGameSocket
+    const query = `update "user" set "game_sockid"='${socketid}' where "username"='${username}'`;
+    await this.userRepository.query(query);
+  }
   
+  async disconnectGameSocket(username: string) {
+    await this.userRepository.update({ username }, { game_sockid: null });
+  }
 
   async getUserByUserName(username: string): Promise<User> {
 

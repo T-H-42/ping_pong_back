@@ -28,8 +28,8 @@ export class User extends BaseEntity {
   chat_sockid : string; //sockid_chat
 
   
-  //@Column ({nullable : true})
-  //sockid_game : string;
+  @Column ({nullable : true})
+  game_sockid : string;
 
   //@Column ({nullable : true})
   //image_url : string;
