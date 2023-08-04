@@ -19,8 +19,8 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   socketid: string; //sockid_pingpong
 
-  //@Column({ nullable: true })
-  //ladder_lv : number;
+  @Column({ nullable: true })
+  ladder_lv : number;
 
 
 
@@ -28,11 +28,11 @@ export class User extends BaseEntity {
   chat_sockid : string; //sockid_chat
 
   
-  //@Column ({nullable : true})
-  //sockid_game : string;
+  @Column ({nullable : true})
+  sockid_game : string;
 
-  //@Column ({nullable : true})
-  //image_url : string;
+  @Column ({nullable : true})
+  image_url : string;
 
   @Column({ nullable: true })
   email: string;
