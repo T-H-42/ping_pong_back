@@ -3,6 +3,7 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
@@ -19,6 +20,8 @@ import { HttpService } from '@nestjs/axios';
 import * as config from 'config';
 import { Any } from 'typeorm';
 import { Socket } from 'dgram';
+import { createReadStream } from 'fs';
+import path from 'path';
 
 @Injectable()
 export class UserService {

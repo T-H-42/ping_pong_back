@@ -3,8 +3,8 @@ jwt:
 
 oauth:
   oauth_id: 'b4804153b3af8bb056c9b190c687aacbe4ee6dfa17e8ba4932bb21a8d9426071'
-  oauth_secret: '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'
-  oauth_redirect_uri: 'http://10.15.1.7:3000/redirect'
+  oauth_secret: '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'
+  oauth_redirect_uri: 'http://10.15.1.5:3000/redirect'
 
 #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
 #   REACT_APP_OAUTH_ID=u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1
