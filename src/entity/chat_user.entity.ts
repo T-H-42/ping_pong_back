@@ -12,6 +12,10 @@ export class Chat_User extends BaseEntity
     @Column()
     user_id : number;
 
+    // @Column()
+    // chat_title: string;
+
+    //chat_title -> index
     @Column()
-    chat_title: string;
+    index: string;
 }

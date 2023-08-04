@@ -21,5 +21,5 @@ export class Chat_Room extends BaseEntity {
     curr_user : number;
 
     @Column()
-    chat_title : string;
+    index : string; //chat_title
 }

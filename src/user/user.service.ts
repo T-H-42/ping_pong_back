@@ -102,7 +102,7 @@ export class UserService {
     // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
     return responseWithToken.send({two_factor_authentication_status:false, username: user.username, accessToken});
     //origin response
-    // return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
+    //return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
   }
 
   async setToken(user: User, res: Response) {
@@ -131,7 +131,6 @@ export class UserService {
     const user = await this.userRepository.findOne({ where: { username } });
     const email = user.email;
     console.log("sendmail");
-    // console.log(email);
 
     await this.mailService.sendMail({
       from: `"sendMail" <42-Ping-Pong@42.com>`,
@@ -139,7 +138,6 @@ export class UserService {
       subject: '2차 인증 코드를 입력',
       text: `인증 코드: ${randomCode < 100000 ?  randomCode * 10 : randomCode} `
     });
-    // console.log("test_email");
     user.two_factor_authentication_code = randomCode;
     return this.userRepository.save(user);
   }
@@ -148,25 +146,14 @@ export class UserService {
     const { username, two_factor_authentication_code } = certificateDto;
     const user = await this.userRepository.findOne({where: {username}})
 
-    console.log("========");
-    console.log(typeof(user.two_factor_authentication_code), typeof(two_factor_authentication_code));
-    console.log("========");
-
     if (user.two_factor_authentication_code === two_factor_authentication_code) {
-      // console.log("2way_auth_user", user);
       const test = await this.setToken(user, res);
-      //////////add_for_another_com///////
       const payload = {
         username: user.username,
         id: user.id,
       };
-
       const accessToken = await this.jwtService.sign(payload);
-      //////////add_for_another_com///////
-      
-      
       return test.send({accessToken});
-      // return this.setToken(user.username, res);
     }
     else {
       console.log("2way_auth_user ::: fail token");
@@ -202,32 +189,20 @@ export class UserService {
 
   async disconnectPingPongSocket(username: string) {
     await this.userRepository.update({ username }, { socketid: null, status: 0 ,chat_sockid: null });//gamesocketid 또한 null로 바꾸는 기능 필요합니다.
+    // 일단은 .... discoonectChatSocket과 다르지 않습니다.
   }
 
   async disconnectChatSocket(username: string) {
     await this.userRepository.update({ username }, { chat_sockid: null });
+    const user = await this.getUserByUserName(username);
+    console.log("test in disconnect");
+    console.log(user);
+    console.log("test in disconnect");
+    const query = `delete from "chat_user" where "user_id"=${user.id};`; ///delete chat_user에서 일치하는 것 전부 삭제
+    await this.userRepository.query(query);
+    // dm은 삭제가 안되더라도, 일반 채팅방일 경우 삭제하면 owner에 대한 처리 어떻게 할지?
+    // 혹은 방을 터트릴지... 이런거 다 생각하긴 해야함.
   }
-
-  
-
-  //
-  /*
-  {
-    f_id : 4,
-    id : 4,
-    ladder_lv : 1000,
-    status : 1,
-    two_factor_auth : true,
-    sockid_pingpong : ~!#$@#!$#@ddfd,
-    sockid_chat : %@#$%$,
-    sockid_game : !@#$%#$,
-    image_url : http://~~~~~,
-    two_factor_authentication_code : 123456
-    username : "hyna",
-  }
-  f_id 는 id와 같습니다.
-  */ 
-
 
   async getUserByPingPongSocketId(id: number) {
     const query = `select "socketid" from "user" where socketid = ${id};`;
@@ -236,52 +211,15 @@ export class UserService {
 
   async getUserNameByChatSockId(chat_socketid: string) {
     const query = await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
-    console.log("in chat_getusername");
-    console.log(query);
-    console.log("in chat_getusername");
+    // console.log("in chat_getusername");
+    // console.log(query);
+    // console.log("in chat_getusername");
     return await this.userRepository.query(query);
   }
-  ////-----------------------------------------------------------------------------------------------
 
-  // async findFriendList(user: User): Promise<User[]> {
-  //   const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
-  //   where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
-  //   const result = await this.userRepository.query(query);
-  //   // console.log("============fr==========");
-  //   // console.log(result);
-  //   // console.log("============fr==========");
-
-  //   return result;
-  // }
-
-  // async getFriendSocket(username: string): Promise<string[]> {
-  //   const user = await this.userRepository.findOne({
-  //     where: {
-  //       username
-  //     }})
-  //   if (!user)
-  //   {
-  //     console.log("???????????????????????????????????????");
-  //     console.log("???????????????????????????????????????");
-  //   }
-  //   const friend_list = await this.findFriendList(user);
-
-  //   const friendSocketList:string[] = [];
-  //   friend_list.map((friend) => {
-  //     // console.log(friend);
-  //     if (friend.socketid !== null) {
-  //       friendSocketList.push(friend.socketid);
-  //     }
-  //   });
-  //   // console.log(friendSocketList);
-  //   return friendSocketList;
-  // }//이거는 업데이트가 아니니레포지토리에서는 정의할필요없어보입니다.
-  ////-----------------------------------------------------------------------------------------------
   async getChatSocketByUserName(username : string)
   {
     const query = await `select "chat_sockid" from "user" where "username" = '${username}';`;
     return await this.userRepository.query(query);
   }
-
-
 }
