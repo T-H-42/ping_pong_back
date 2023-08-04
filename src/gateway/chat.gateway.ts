@@ -320,6 +320,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (await this.chatRoomService.isUserInRoom(userId, roomName) !== true)
         await this.chatRoomService.joinUserToRoom(userId, roomName); //이미 유저 네임이 있으면 만들지 않음
       socket.join(roomName);
+      console.log("========???여기까지???");
       return { success: true, index:roomName};
   }
 
@@ -355,13 +356,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() { roomName, message, receiver }: MessagePayload,
   ) {
       console.log("======ft_dm 이벤트 수신======");
-      console.log(message);
-      console.log(roomName);
+      // console.log(message);
+      // console.log(roomName);
       let payload;
       try {
         payload = await this.getPayload(socket);
         this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
-        console.log("======ft_dm 이벤트 수신======");
+        // console.log("======ft_dm 이벤트 수신======");
       } catch (error) { //나중에 throw 로 교체
         console.log("payloaderr in msg");
         return error;
@@ -375,6 +376,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         const friend = await this.userService.getChatSocketByUserName(receiver);
         let friends = [];
         friends.push(friend[0].chat_sockid);
+        // roomName, user_id, msg, time으로 저장
+        console.log("========???여기까지???2222");
+        await this.chatRoomService.saveMessage(roomName, userId, message);
+        console.log("========???여기까지???3333");
+
         await socket.broadcast.to(friends).emit('ft_dm', { //상대방에게 필요함. status에 따라 내가 쏘는 부분도 다름
           username: `${payload.username}`,
           message,

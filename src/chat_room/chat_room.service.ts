@@ -63,4 +63,59 @@ export class ChatRoomService {
             return false;
         return true;
     }
+
+    async saveMessage(roomName : string, userid : number, message : string)
+    {
+        const query = `insert into "chat_room_msg"("index", "user_id", "msg", "time") values('${roomName}',${userid},'${message}', now());`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    async getDmMessage(roomName : string) //객체들의 배열로 갈것!
+    {
+        const query = `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='nhwang,taeheonk') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        return await this.chatRoomRepository.query(query);
+
+        /*
+        dmAPI_check
+        [
+        { username: 'nhwang', msg: 'sdafsd' },
+        { username: 'nhwang', msg: 'sajlkfjsdklfsd' },
+        { username: 'taeheonk', msg: '에베베' },
+        { username: 'nhwang', msg: 'ㅎㅏ이' },
+        { username: 'taeheonk', msg: '에에비비에에비' },
+        { username: 'nhwang', msg: 'ㄴㄴㅇㅇㅁㅁㄹㄴㅇㄹㅇㄴㅁ' },
+        { username: 'nhwang', msg: 'ㅗㅗㅓㅓㅏㅏㅗㅗㅓㅓㅏㅏㅗㅗ' },
+        { username: 'taeheonk', msg: '에비에비에비' },
+        { username: 'nhwang', msg: 'ㄴ멍리아ㅓㅂ젇갸ㅐㅈㄷㄷㅂㅂ\\' },
+        { username: 'nhwang', msg: '하하이이하하이이' },
+        { username: 'nhwang', msg: '신신기기하하다다' },
+        { username: 'nhwang', msg: '아민러ㅏㅣㄴ얼' },
+        { username: 'nhwang', msg: 'dasfds' }
+        ]
+dmAPI_check
+        */
+    }
+
+    /*
+    select msg,user_id from "chat_room_msg" where "index"='nhwang,taeheonk' order by time asc;
+
+
+                  msg              | user_id 
+-------------------------------+---------
+ sdafsd                        |      10
+ sajlkfjsdklfsd                |      10
+ 에베베                        |      13
+ ㅎㅏ이                        |      10
+ 에에비비에에비                |      13
+ ㄴㄴㅇㅇㅁㅁㄹㄴㅇㄹㅇㄴㅁ    |      10
+ ㅗㅗㅓㅓㅏㅏㅗㅗㅓㅓㅏㅏㅗㅗ  |      10
+ 에비에비에비                  |      13
+ ㄴ멍리아ㅓㅂ젇갸ㅐㅈㄷㄷㅂㅂ\ |      10
+ 하하이이하하이이              |      10
+ 신신기기하하다다              |      10
+ 아민러ㅏㅣㄴ얼                |      10
+
+ `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='nhwang,taeheonk') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`
+
+    */
 } 
