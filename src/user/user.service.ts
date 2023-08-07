@@ -1,4 +1,10 @@
-import { HttpException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { UserRepository } from './user.repository';
 import { JwtService } from '@nestjs/jwt';
@@ -20,87 +26,107 @@ export class UserService {
     private userRepository: UserRepository,
     private jwtService: JwtService,
     private mailService: MailerService,
-    private readonly httpService: HttpService
-  ) { }
+    private readonly httpService: HttpService,
+  ) {}
 
   async signIn(loginDto: LoginDto, res: Response) {
     const { code } = loginDto;
-    console.log("code", code);
+    console.log('code', code);
     //findOne
     // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
     const oauthConfig = config.get('oauth');
-    console.log('======================================== sigin in ===============================');
+    console.log(
+      '======================================== sigin in ===============================',
+    );
     console.log('redir', oauthConfig.oauth_redirect_uri);
     const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${oauthConfig.oauth_id}&client_secret=${oauthConfig.oauth_secret}&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
       this.httpService.post(url).pipe(
-        catchError((error:AxiosError) => {
-          if (error.response)
-          {
-            console.log("test signin");
+        catchError((error: AxiosError) => {
+          if (error.response) {
+            console.log('test signin');
             throw new HttpException(error.response.data, error.response.status);
-          }
-          else {
-            console.log("이 로그가 찍히면 42서버가 문제");
+          } else {
+            console.log('이 로그가 찍히면 42서버가 문제');
             console.log(error);
             throw new InternalServerErrorException();
           }
-        })
-      )
-    )
+        }),
+      ),
+    );
+    console.log(
+      '======================================== sigin in2 ===============================',
+    );
     const headers = {
       Authorization: `Bearer ${data.access_token}`,
     };
+    console.log(data.access_token);
     const _url = 'https://api.intra.42.fr/v2/me';
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
-        catchError((error:AxiosError) => {
+        catchError((error: AxiosError) => {
           if (error.response)
             throw new HttpException(error.response.data, error.response.status);
-          else
-            throw new InternalServerErrorException();
-        })
-      )
-    )
+          else throw new InternalServerErrorException();
+        }),
+      ),
+    );
     /////---------------------------- for test except 42 auth----------------------------
-    
+
     // console.log("========");
     // console.log('response username ', response.data.login);
     // console.log("========");
 
-    const user = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: {
-        username: response.data.login
+        username: response.data.login,
       },
     });
+    if (!user) {
+      console.log("user doesn't exist");
+      const _user = await this.userRepository.createUser(
+        response.data.login,
+        response.data.email,
+      );
+      const _res = await this.setToken(_user, res);
+      user = await this.userRepository.findOne({
+        where: {
+          username: response.data.login,
+        },
+      });
+    }
     //////////////////////add///////////////////
     const payload = {
       username: user.username,
       id: user.id,
     };
+    console.log('===========');
+    console.log(user);
+    console.log('===========');
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
-    if (!user) {
-      console.log("user doesn't exist");
-      const _user = await this.userRepository.createUser(response.data.login, response.data.email);
-      const _res = await this.setToken(_user, res);
-      return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
-    }
-    if (user.two_factor_authentication_status===true) {
+
+    if (user.two_factor_authentication_status === true) {
       // await this.sendMail(loginDto);
-      console.log("user exist");
+      console.log('user exist');
       await this.sendMail(user.username);
-      return res.send({two_factor_authentication_status:true, username: user.username,accessToken});
+      return res.send({
+        two_factor_authentication_status: true,
+        username: user.username,
+        accessToken,
+      });
     }
-
-
 
     ////////////////////////////////////////////////////////////////////////////////////
     const responseWithToken = await this.setToken(user, res);
     // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
-    return responseWithToken.send({two_factor_authentication_status:false, username: user.username, accessToken});
+    return responseWithToken.send({
+      two_factor_authentication_status: false,
+      username: user.username,
+      accessToken,
+    });
     //origin response
     // return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
   }
@@ -119,25 +145,24 @@ export class UserService {
     // return res.send();
   }
 
-
   async sendMail(username: string) {
     const digits = 6;
     const buffer = crypto.randomBytes(digits);
     const randomValue = parseInt(buffer.toString('hex'), 16);
-    const randomCode = randomValue % (10 ** digits);
+    const randomCode = randomValue % 10 ** digits;
     console.log(randomCode);
 
     // const username = loginDto.username;
     const user = await this.userRepository.findOne({ where: { username } });
     const email = user.email;
-    console.log("sendmail");
+    console.log('sendmail');
     // console.log(email);
 
     await this.mailService.sendMail({
       from: `"sendMail" <42-Ping-Pong@42.com>`,
       to: `${email}`,
       subject: '2차 인증 코드를 입력',
-      text: `인증 코드: ${randomCode < 100000 ?  randomCode * 10 : randomCode} `
+      text: `인증 코드: ${randomCode < 100000 ? randomCode * 10 : randomCode} `,
     });
     // console.log("test_email");
     user.two_factor_authentication_code = randomCode;
@@ -146,13 +171,18 @@ export class UserService {
 
   async certificateUser(certificateDto: CertificateDto, res: Response) {
     const { username, two_factor_authentication_code } = certificateDto;
-    const user = await this.userRepository.findOne({where: {username}})
+    const user = await this.userRepository.findOne({ where: { username } });
 
-    console.log("========");
-    console.log(typeof(user.two_factor_authentication_code), typeof(two_factor_authentication_code));
-    console.log("========");
+    console.log('========');
+    console.log(
+      typeof user.two_factor_authentication_code,
+      typeof two_factor_authentication_code,
+    );
+    console.log('========');
 
-    if (user.two_factor_authentication_code === two_factor_authentication_code) {
+    if (
+      user.two_factor_authentication_code === two_factor_authentication_code
+    ) {
       // console.log("2way_auth_user", user);
       const test = await this.setToken(user, res);
       //////////add_for_another_com///////
@@ -163,52 +193,70 @@ export class UserService {
 
       const accessToken = await this.jwtService.sign(payload);
       //////////add_for_another_com///////
-      
-      
-      return test.send({accessToken});
+
+      return test.send({ accessToken });
       // return this.setToken(user.username, res);
-    }
-    else {
-      console.log("2way_auth_user ::: fail token");
+    } else {
+      console.log('2way_auth_user ::: fail token');
       throw new UnauthorizedException('failed auth_code for 2Auth user');
     }
   }
 
-
-  async connectPingPongSocket(username: string, socketid: string) { //connectPingPongSocket
+  async connectPingPongSocket(username: string, socketid: string) {
+    //connectPingPongSocket
     await this.userRepository.update(
       { username: username },
       { socketid: socketid, status: 1 },
     );
   }
 
-  async connectChatSocket(username: string, socketid: string) { //connectChatSocket
+  async connectChatSocket(username: string, socketid: string) {
+    //connectChatSocket
     const query = `update "user" set "chat_sockid"='${socketid}' where "username"='${username}'`;
     await this.userRepository.query(query);
   }
 
-  
-
   async getUserByUserName(username: string): Promise<User> {
-
     const user = await this.userRepository.findOne({
-      where:
-      {
-        username: username
-      }
-    })
+      where: {
+        username: username,
+      },
+    });
     return user;
   }
 
   async disconnectPingPongSocket(username: string) {
-    await this.userRepository.update({ username }, { socketid: null, status: 0 ,chat_sockid: null });//gamesocketid 또한 null로 바꾸는 기능 필요합니다.
+    await this.userRepository.update(
+      { username },
+      { socketid: null, status: 0, chat_sockid: null },
+    ); //gamesocketid 또한 null로 바꾸는 기능 필요합니다.
   }
 
   async disconnectChatSocket(username: string) {
     await this.userRepository.update({ username }, { chat_sockid: null });
   }
 
+<<<<<<< HEAD
 
+=======
+  //
+  /*
+  {
+    f_id : 4,
+    id : 4,
+    ladder_lv : 1000,
+    status : 1,
+    two_factor_auth : true,
+    sockid_pingpong : ~!#$@#!$#@ddfd,
+    sockid_chat : %@#$%$,
+    sockid_game : !@#$%#$,
+    image_url : http://~~~~~,
+    two_factor_authentication_code : 123456
+    username : "hyna",
+  }
+  f_id 는 id와 같습니다.
+  */
+>>>>>>> 0cfa46d0d2fd5c130c35e313709d9db0ea0a9458
 
   async getUserByPingPongSocketId(id: number) {
     const query = `select "socketid" from "user" where socketid = ${id};`;
@@ -216,10 +264,11 @@ export class UserService {
   }
 
   async getUserNameByChatSockId(chat_socketid: string) {
-    const query = await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
-    console.log("in chat_getusername");
+    const query =
+      await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
+    console.log('in chat_getusername');
     console.log(query);
-    console.log("in chat_getusername");
+    console.log('in chat_getusername');
     return await this.userRepository.query(query);
   }
 
@@ -228,6 +277,33 @@ export class UserService {
     const query = await `select "chat_sockid" from "user" where "username" = '${username}';`;
     return await this.userRepository.query(query);
   }
+
+  async getUserProfile(username: string) {
+    const user = await this.userRepository.query(
+      `select * from "user" where "username" = '${username}';`,
+    );
+    const userAchievement = await this.userRepository.query(
+      `select achievement from achievement where user_id = ${user[0].id};`,
+    );
+    const userProfile = await { ...user[0], achievements: [] as string[] };
+    await userAchievement.map((achievement) =>
+      userProfile.achievements.push(achievement.achievement),
+    );
+    return await userProfile;
+  }
+
+  async uploadProfileImage(username: string, image: Express.Multer.File) {
+    if (!image) {
+      throw new BadRequestException();
+    }
+    const imageUpdate = await this.userRepository.updateProfileImage(
+      username,
+      image.filename,
+    );
+    if (!imageUpdate.affected) throw new UnauthorizedException();
+    return 'succeed';
+  }
+
   ////-----------------------------------------------------------------------------------------------
 
   // async findFriendList(user: User): Promise<User[]> {
@@ -264,7 +340,4 @@ export class UserService {
   //   return friendSocketList;
   // }//이거는 업데이트가 아니니레포지토리에서는 정의할필요없어보입니다.
   ////-----------------------------------------------------------------------------------------------
-
-
-
 }

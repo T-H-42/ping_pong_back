@@ -17,7 +17,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.4:3000'],
+    origin: ['http://10.15.1.7:3000'],
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
