@@ -1,12 +1,12 @@
-import { BaseEntity, Column, Entity, PrimaryColumn } from "typeorm";
+import { BaseEntity, Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Chat_Room_Msg extends BaseEntity {
-    @PrimaryColumn()
+    @PrimaryGeneratedColumn()
     id : number;
 
     @Column()
-    chat_room_id : number;
+    index : string;
 
 	@Column()
 	user_id : number;
