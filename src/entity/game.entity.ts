@@ -1,10 +1,10 @@
-import { 
-	BaseEntity,
-	Column,
-	Entity,
-	PrimaryGeneratedColumn,
-	Unique
-} from "typeorm";
+import {
+  BaseEntity,
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
 
 @Entity()
 export class Game extends BaseEntity {
@@ -12,16 +12,16 @@ export class Game extends BaseEntity {
   game_id: number;
 
   @Column()
-  winer: number;
+  winner: number;
 
-  @Column()
-  loser : number;
+  @Column({ nullable: true })
+  loser: number;
 
   @Column({ nullable: true })
   time: string;
 
   @Column()
-  finished : boolean;
+  finished: boolean;
 
   /*
   @ManyToOne((type) => User, (user) => user.send_friend, { eager: false })
@@ -31,5 +31,4 @@ export class Game extends BaseEntity {
   @ManyToOne((type) => User, (user) => user.recv_friend, { eager: false })
   recv_id: User;
   */
-
 }
