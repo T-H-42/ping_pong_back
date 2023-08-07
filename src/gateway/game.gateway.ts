@@ -7,39 +7,42 @@ import * as jwt from 'jsonwebtoken';
 import { UserService } from 'src/user/user.service';
 import { GameService } from 'src/game/game.service';
 
-// 게임 설정 인터페이스
-interface GameSetting {
-  sockets: Socket[];
-  speed: number;
-  score: number;
-  timer: NodeJS.Timeout | null;
-}
-
-
 interface Paddle {
-  x: number
-  y: number
-  width: number
-  height: number
-  color: string
-  score: number
+	x: number
+	y: number
+	width: number
+	height: number
 }
-
+  
 interface Ball {
-  x: number
-  y: number
-  radius: number
-  speed: number
+	x: number
+	y: number
+	radius: number
   velocityX: number
   velocityY: number
-  color: string
+}
+
+interface Score {
+  left: number
+  right: number
 }
 
 // Back -> front
 interface GameElement {
-  leftPaddle: Paddle,
-  rightPaddle: Paddle,
-  ball: Ball,
+	leftPaddle: Paddle,
+	rightPaddle: Paddle,
+	ball: Ball,
+  score: Score,
+}
+
+
+// 게임 설정 인터페이스
+interface GameInformation {
+  sockets: Socket[];
+  speed: number;
+  score: number;
+  timer: NodeJS.Timeout | null;
+  element: GameElement | null;
 }
 
 interface ISettingInformation {
@@ -66,7 +69,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private matchQueue: Socket[] = [];
 
   // 게임 방들을 담는 배열
-  private gameRooms: { [key: string]: GameSetting } = {};
+  private gameRooms: { [key: string]: GameInformation } = {};
 
   // 채널 입장
   async handleConnection(@ConnectedSocket() socket: Socket) {
@@ -127,13 +130,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       speed: 0,
       score: 0,
       timer: null,
+      element: null,
     }
     sockets.forEach(socket => {
-      //소켓 인덱스가 0 이면 오너
+      //소켓 인덱스가 0 이면 오너는 true, 1이면 false
+      const isOwner = sockets.indexOf(socket) === 0 ? true : false;
       socket.join(roomName);
       socket.emit('ft_match_success', {
         success: true,
         roomName,
+        isOwner,
       });
     });
   }
@@ -168,7 +174,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (roomName === undefined) {
       return { success: false };
     }
-    console.log('dho dksehosirh tq',this.gameRooms[roomName].sockets);
     const sockets = this.gameRooms[roomName].sockets;
     this.gameRooms[roomName].speed = data.speed;
     this.gameRooms[roomName].score = data.score;
@@ -194,21 +199,101 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     })
   }
 
-  // 게임 정보를 주기적으로 프론트에게 전달
+  // ft_game_play 이벤트를 받으면 게임 시작 , 한번만 실행 되어야 함
+  // 게임 시작
+  // 게임 관련 데이터 초기화 진행
+  // 일정 주기 마다 속성들을 업데이트 할 수 있도록 타이머를 설정
   @SubscribeMessage('ft_game_play')
   handleGameStart(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,) {
+    this.logger.log(`Game 채널 ft_game_play 호출`);
+    //game table에 데이터 저장
+    this.gameService.createGame(this.gameRooms[roomName].sockets[0].id, this.gameRooms[roomName].sockets[1].id);
+    this.gameRooms[roomName].element = this.createElement();
     const timer = setInterval(() => {
-      this.sendPosition(roomName);
+      this.positionUpdate(roomName);
     }, 20)
     this.gameRooms[roomName].timer = timer;
   }
 
-  @SubscribeMessage('ft_send_position')
-  sendPosition(roomName: string) {
-    //....
+  // 1972 pong 게임 속성 업데이트
+  async positionUpdate(roomName: string) {
+    //ball의 위치를 업데이트
+    await this.ballUpdate(roomName);
+
+    //Ball 충돌 감지 이벤트 호출
+    await this.ballCollision(roomName);
+
+    //ball의 위치를 전송
+    await this.sendPosition(roomName);
   }
+
+  //paddle의 위치를 변경 감지 이벤트
+  paddleUpdate(roomName: string) {
+  }
+  
+  ballUpdate(roomName: string) {
+    //현재 gameRoom의 Game element ball의 위치를 갱신
+    this.gameRooms[roomName].element.ball.x += this.gameRooms[roomName].element.ball.velocityX;
+    this.gameRooms[roomName].element.ball.y += this.gameRooms[roomName].element.ball.velocityY;
+  }
+
+  ballCollision(roomName: string) {
+    const ball = this.gameRooms[roomName].element.ball;
+    const leftPaddle = this.gameRooms[roomName].element.leftPaddle;
+    const rightPaddle = this.gameRooms[roomName].element.rightPaddle;
+
+    if (ball.y - ball.radius < 0 || ball.y + ball.radius > 100) {
+      this.gameRooms[roomName].element.ball.velocityY = -this.gameRooms[roomName].element.ball.velocityY;
+    }
+
+    //ball이 paddle에 부딪히면 부딪힌 각도에 따라 방향을 바꿈
+    if (ball.x - ball.radius < leftPaddle.x + leftPaddle.width && 
+      ball.y + ball.radius >= leftPaddle.y && 
+      ball.y - ball.radius <= leftPaddle.y + leftPaddle.height) {
+        const deltaY = ball.y - (leftPaddle.y + leftPaddle.height / 2);
+        this.gameRooms[roomName].element.ball.velocityX = -this.gameRooms[roomName].element.ball.velocityX;
+        this.gameRooms[roomName].element.ball.velocityY = deltaY * 0.1;  // 0.1은 부드러운 각도 조절 나중에 수정 필요
+      }
+    if (ball.x + ball.radius > rightPaddle.x &&
+      ball.y + ball.radius >= rightPaddle.y &&
+      ball.y - ball.radius <= rightPaddle.y + rightPaddle.height) {
+        const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
+        this.gameRooms[roomName].element.ball.velocityX = -this.gameRooms[roomName].element.ball.velocityX;
+        this.gameRooms[roomName].element.ball.velocityY = deltaY * 0.1;
+      }
+
+    //ball이 paddle을 넘어가면 score를 올림
+    if (this.gameRooms[roomName].element.ball.x < 0) {
+      this.gameRooms[roomName].element.score.right += 1;
+      this.resetBallPosition(roomName);
+    }
+    if (this.gameRooms[roomName].element.ball.x > 100) {
+      this.gameRooms[roomName].element.score.left += 1;
+      this.resetBallPosition(roomName);
+    }
+  }
+
+  // ball 위치 초기화
+  resetBallPosition(roomName: string) {
+    this.gameRooms[roomName].element.ball.x = 50;
+    this.gameRooms[roomName].element.ball.y = 50;
+    this.gameRooms[roomName].element.ball.velocityX = 2;
+    this.gameRooms[roomName].element.ball.velocityY = 1;
+  }
+
+  // ball 위치 전송
+  sendPosition(roomName: string) {
+    this.nsp.to(roomName).emit('ft_send_position', {
+      ball: this.gameRooms[roomName].element.ball,
+      leftPaddle: this.gameRooms[roomName].element.leftPaddle,
+      rightPaddle: this.gameRooms[roomName].element.rightPaddle,
+      score: this.gameRooms[roomName].element.score,
+    })
+  }
+
+
   // socket으로 부터 token을 받아서 payload 추출
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
@@ -217,4 +302,32 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return await jwt.verify(token, secret) as any;
   }
 
+
+  createElement() : GameElement {
+    return {
+      ball: {
+        x: 45,
+        y: 45,
+        radius: 5,
+        velocityX: 2,
+        velocityY: 1,
+      },
+      leftPaddle: {
+        x: 10,
+        y: 30,
+        width: 10,
+        height: 40,
+      },
+      rightPaddle: {
+        x: 80,
+        y: 30,
+        width: 10,
+        height: 40,
+      },
+      score: {
+        left: 0,
+        right: 0,
+      }
+    }
+  }
 }
