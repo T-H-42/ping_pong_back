@@ -11,7 +11,7 @@ export class Game extends BaseEntity {
   @PrimaryGeneratedColumn()
   game_id: number;
 
-  @Column()
+  @Column({ nullable: true })
   winner: number;
 
   @Column({ nullable: true })
