@@ -88,6 +88,21 @@ export class UserService {
     });
     if (!user) {
       console.log("user doesn't exist");
+      // <<<<<<< HEAD
+      //       const _user = await this.userRepository.createUser(response.data.login, response.data.email);
+      //       //////////////////////add///////////////////
+      //       const payload = {
+      //         username: _user.username,
+      //         id: _user.id,
+      //       };
+
+      //       const accessToken = await this.jwtService.sign(payload);
+      //       //////////////////////add///////////////////
+      //       const _res = await this.setToken(_user, res);
+      //       return (await _res).send({two_factor_authentication_status:false, username: _user.username,accessToken})
+      //     }
+
+      // =======
       const _user = await this.userRepository.createUser(
         response.data.login,
         response.data.email,
@@ -99,6 +114,7 @@ export class UserService {
         },
       });
     }
+    // >>>>>>> develop
     //////////////////////add///////////////////
     const payload = {
       username: user.username,
@@ -183,25 +199,25 @@ export class UserService {
         id: user.id,
       };
       const accessToken = await this.jwtService.sign(payload);
-// <<<<<<< HEAD
-//       return test.send({accessToken});
-//     }
-//     else {
-//       console.log("2way_auth_user ::: fail token");
-// =======
+      // <<<<<<< HEAD
+      //       return test.send({accessToken});
+      //     }
+      //     else {
+      //       console.log("2way_auth_user ::: fail token");
+      // =======
       //////////add_for_another_com///////
 
       return test.send({ accessToken });
       // return this.setToken(user.username, res);
     } else {
       console.log('2way_auth_user ::: fail token');
-// >>>>>>> develop
+      // >>>>>>> develop
       throw new UnauthorizedException('failed auth_code for 2Auth user');
     }
   }
 
-
-  async connectPingPongSocket(username: string, socketid: string) { //connectPingPongSocket
+  async connectPingPongSocket(username: string, socketid: string) {
+    //connectPingPongSocket
     //connectPingPongSocket
     await this.userRepository.update(
       { username: username },
@@ -213,6 +229,16 @@ export class UserService {
     //connectChatSocket
     const query = `update "user" set "chat_sockid"='${socketid}' where "username"='${username}'`;
     await this.userRepository.query(query);
+  }
+
+  async connectGameSocket(username: string, socketid: string) {
+    //connectGameSocket
+    const query = `update "user" set "game_sockid"='${socketid}' where "username"='${username}'`;
+    await this.userRepository.query(query);
+  }
+
+  async disconnectGameSocket(username: string) {
+    await this.userRepository.update({ username }, { game_sockid: null });
   }
 
   async getUserByUserName(username: string): Promise<User> {
@@ -243,13 +269,13 @@ export class UserService {
     // 혹은 방을 터트릴지... 이런거 다 생각하긴 해야함.
   }
 
- async getUserByPingPongSocketId(id: number) {
+  async getUserByPingPongSocketId(id: number) {
     const query = `select "socketid" from "user" where socketid = ${id};`;
     return await this.userRepository.query(query);
   }
 
   async getUserNameByChatSockId(chat_socketid: string) {
-   const query =
+    const query =
       await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
     console.log('in chat_getusername');
     console.log(query);
@@ -257,9 +283,9 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
-  async getChatSocketByUserName(username : string)
-  {
-    const query = await `select "chat_sockid" from "user" where "username" = '${username}';`;
+  async getChatSocketByUserName(username: string) {
+    const query =
+      await `select "chat_sockid" from "user" where "username" = '${username}';`;
     return await this.userRepository.query(query);
   }
 
@@ -295,6 +321,4 @@ export class UserService {
     if (!imageUpdate.affected) throw new UnauthorizedException();
     return 'succeed';
   }
-
-  
 }

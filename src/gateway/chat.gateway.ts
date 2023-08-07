@@ -45,7 +45,7 @@ export class ChatGateway
   @WebSocketServer() nsp: Namespace;
 
   afterInit() {
-    this.logger.log('afterInit');
+    // this.logger.log('afterInit');
     this.nsp.adapter.on('delete-room', (room) => {
       const deletedRoom = createdRooms.find(
         (createdRoom) => createdRoom === room,
@@ -58,7 +58,7 @@ export class ChatGateway
       );
     });
 
-    this.logger.log('Websock_server_init');
+    // this.logger.log('Websock_server_init');
   }
 
   ////////////////////////////////////// - channel dis/connection - start //////////////////////////////////////

@@ -17,7 +17,7 @@ export class Game extends BaseEntity {
   @Column({ nullable: true })
   loser: number;
 
-  @Column()
+  @Column({ nullable: true })
   time: string;
 
   @Column()

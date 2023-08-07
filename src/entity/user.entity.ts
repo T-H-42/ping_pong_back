@@ -20,19 +20,16 @@ export class User extends BaseEntity {
   socketid: string; //sockid_pingpong
 
   @Column({ nullable: true })
-  ladder_lv : number;
+  ladder_lv: number;
 
+  @Column({ nullable: true })
+  chat_sockid: string; //sockid_chat
 
+  @Column({ nullable: true })
+  game_sockid: string;
 
-  @Column ({nullable : true})
-  chat_sockid : string; //sockid_chat
-
-  
-  @Column ({nullable : true})
-  sockid_game : string;
-
-  @Column ({nullable : true})
-  image_url : string;
+  @Column({ nullable: true })
+  image_url: string;
 
   @Column({ nullable: true })
   email: string;
@@ -40,10 +37,10 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   status: number;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   two_factor_authentication_status: boolean; //two_factor_auth로 변경
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   two_factor_authentication_code: number;
 
   @OneToMany((type) => Friend, (friend) => friend.send_id, { eager: true })
