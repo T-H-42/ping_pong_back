@@ -74,6 +74,7 @@ export class ChatGateway
       );
     } catch (error) {
       this.logger.error('1. validate_token fail in chat', error);
+      // socket.disconnect();
     }
   }
 
@@ -86,6 +87,7 @@ export class ChatGateway
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('get payload err in chatDisconnect');
+      socket.disconnect();
     }
   }
   ////////////////////////////////////// - channel dis/connection - end //////////////////////////////////////
@@ -128,6 +130,7 @@ export class ChatGateway
   async handleCreateRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
+    @MessageBody() status: string, /////
   ) {
     let payload;
     try {
@@ -136,11 +139,15 @@ export class ChatGateway
     } catch (error) {
       console.log('chatroom create 에러');
     }
-    // this.logger.log("create-room in!!!!");
-    const exist = await createdRooms.find(
-      (createdRoom) => createdRoom === roomName,
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
     );
-    if (exist) {
+    const userId = requestUser.id;
+    const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
+    if (isExist !== true) {
+      await this.chatRoomService.createDmRoom(userId, roomName);
+    }
+    else{
       return { success: false, payload: `${roomName} 방이 이미 존재합니다.` };
     }
 
@@ -169,6 +176,15 @@ export class ChatGateway
       //나중에 throw 로 교체
       return error;
     }
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
+    const userId = requestUser.id;
+
+    if ((await this.chatRoomService.isUserInRoom(userId, roomName)) !== true)
+      await this.chatRoomService.joinUserToRoom(userId, roomName); //이미 유저 네임이 있으면 만들지 않음
+    socket.join(roomName);
+
     // console.log(payload.username, ' ', socket.id);
     // socket.broadcast.except().to(roomName).emit()
     socket.broadcast.to(roomName).emit('ft_message', {
@@ -202,95 +218,6 @@ export class ChatGateway
   }
 
   ////////////////////////////////////// - DM Scope - start //////////////////////////////////////
-  @SubscribeMessage('ft_dm_invitation') //DM 버튼 눌눌렸렸을  때  호출!
-  async handleInvitationDm(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() userName: string,
-  ) {
-    this.logger.log('dm 입장하기 호출: ', socket.id);
-    let payload;
-    try {
-      payload = await this.getPayload(socket);
-    } catch (error) {
-      //나중에 throw 로 교체
-      return error;
-    }
-    //////////////dm room 이름 고유값 설정
-    let arr = [];
-    arr.push(userName);
-    arr.push(payload.username);
-    arr.sort();
-    let roomName = arr.join();
-    //////////////dm room 이름 고유값 설정
-    const friend_sock = await this.userService.getChatSocketByUserName(
-      userName,
-    ); // 대상의 socket 가져오기
-    let roomUserSocks = []; // room에 포함된 유저의 소켓을 배열에 담을 것.
-    roomUserSocks.push(friend_sock[0].chat_sockid);
-    roomUserSocks.push(socket.id);
-    let friend_socks = [];
-    friend_socks.push(friend_sock[0].chat_sockid); // broadcast.to([friend_sock.chat_sockid]) -> 이런식으로 주면 소켓통신이 되지 않는 이슈가 있어 배열에 담아서 리턴!
-
-    const requestUser = await this.userService.getUserByUserName(
-      payload.username,
-    ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
-    const userId = requestUser.id;
-
-    const responseUser = await this.userService.getUserByUserName(userName);
-    const resUserId = responseUser.id;
-
-    const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
-    if (isExist === true) {
-      console.log('already exist room!');
-      return { username: null, index: null, success: false };
-    } else {
-      console.log('make room, join', isExist);
-      await this.chatRoomService.createDmRoom(userId, roomName); ////DB에만 넣고 실제 join은 join-dm 이벤트에서!
-
-      await this.chatRoomService.joinUserToRoom(userId, roomName);
-      await this.chatRoomService.joinUserToRoom(resUserId, roomName); ////DB에만 넣고 실제 join은 join-dm 이벤트에서!
-    }
-
-    // this.nsp.to(roomUserSocks).emit('create-dm', {
-    //   roomname:`${roomName}`,
-    //   // username: userName,
-    //   sender:`${payload.username}`,
-    //   receiver:`${userName}`,
-    //   success : true
-    // }); //create-dm 이벤트를 통해 프론트에 룸 생성 된 것 표기!
-
-    socket.broadcast.to(friend_socks).emit('ft_dm_invitation', {
-      //emit -> 수신 클라이언트에게!
-      username: `${payload.username}`,
-      index: `${roomName}`,
-      success: true,
-    });
-    return { username: `${userName}`, index: `${roomName}`, success: true }; //return -> 발신 클라이언트에게!
-  }
-
-  // @SubscribeMessage('dm-list')
-  // async handleDmList(
-  //   @ConnectedSocket() socket: Socket,
-  //   ) {
-  //   this.logger.log('dm 목록 반환하기 호출');
-  //   let payload;
-  //   try {
-  //     payload = await this.getPayload(socket);
-  //   } catch (error) { //나중에 throw 로 교체
-  //     return error;
-  //   }
-  //   const requestUser = await this.userService.getUserByUserName(payload.username); // 마찬가지로 아래 쿼리에서 id 사용을 원해서 사용한 함수.
-  //   const userId = requestUser.id;
-  //   const tempDmList = await this.chatRoomService.dmListByUserName(userId);
-  //   // let dmList = tempDmList.map(i => i.index);
-  //   let dmList = tempDmList.map(i => i); // 쿼리의 변경으로 인해 객체들을 전달하니까(before : 문자열들의 배열을 전달하고 있었음) 이 부분은 필요없이 즉시 tempDmList를 반환하면 될 것 같기도 함.
-
-  //   console.log(".====dmlist====");
-  //   console.log(dmList);
-  //   console.log(".====dmlist====");
-
-  //   return dmList;
-  // }
 
   @SubscribeMessage('join-dm')
   async handleJoinDm(
