@@ -23,3 +23,7 @@ export class Chat_Room extends BaseEntity {
     @Column()
     index : string; //chat_title
 }
+
+/*
+
+*/

@@ -46,6 +46,7 @@ export class PingPongGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     catch(error) {
       console.log("in ping_pong channel");
       this.logger.error('1. validate_token fail in ping', error);
+      // return (error);
     }
     // const token = socket.handshake.auth.token;
   }

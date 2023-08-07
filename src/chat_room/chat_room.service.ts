@@ -70,7 +70,7 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query);
     }
 
-    async getDmMessage(roomName : string) //객체들의 배열로 갈것!
+    async getDmMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
     {
         const query = `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='nhwang,taeheonk') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
         return await this.chatRoomRepository.query(query);
@@ -95,27 +95,31 @@ export class ChatRoomService {
 dmAPI_check
         */
     }
-
     /*
-    select msg,user_id from "chat_room_msg" where "index"='nhwang,taeheonk' order by time asc;
+    ///////////////////////채팅방 정보 Scope!///////////////////////
+    async getUserListInChatRoom(requestUser : username or id, roomName : string) chat_user를 다 가져오면 될것.
+    {
+        1. admin과 chat_user가 합쳐졌다고 가정한 쿼리 (right - 0,1,2 -> 0 == owner, 1 == admin, 2 == 일반유저 이런 식의 약속 필요하긴함)
+        select * from "chat_user" where "index" = '${roomName}';
+    }
 
+    Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
+    async checkReqUserRight(requestUserId : number, roomName : string) admin인지 오너인지 확인해줘야 함. -> admin,owner면 그에 맞는 버튼은 그 뒤의 모달에서 보여줘야 할 것.
+    {
+        selct right from "chat_user" where "index" = '${roomName}' and "user_id" = ${requestUserId};
+        return ~~~
+    }
 
-                  msg              | user_id 
--------------------------------+---------
- sdafsd                        |      10
- sajlkfjsdklfsd                |      10
- 에베베                        |      13
- ㅎㅏ이                        |      10
- 에에비비에에비                |      13
- ㄴㄴㅇㅇㅁㅁㄹㄴㅇㄹㅇㄴㅁ    |      10
- ㅗㅗㅓㅓㅏㅏㅗㅗㅓㅓㅏㅏㅗㅗ  |      10
- 에비에비에비                  |      13
- ㄴ멍리아ㅓㅂ젇갸ㅐㅈㄷㄷㅂㅂ\ |      10
- 하하이이하하이이              |      10
- 신신기기하하다다              |      10
- 아민러ㅏㅣㄴ얼                |      10
-
- `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='nhwang,taeheonk') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`
-
+    async isPasswordRoom(roomName : string)
+    {
+        const query = select password from "chat_room" where "index" = '${roomName}';
+        const ret = await ~~;
+        if (ret.length === 0)
+        {
+            return false;
+        }
+        return true;
+    }
+    ///////////////////////채팅방 정보 Scope!///////////////////////
     */
 } 

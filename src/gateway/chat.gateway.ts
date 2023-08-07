@@ -169,7 +169,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         return error;
       }
       // console.log(payload.username, ' ', socket.id);
-
+      // socket.broadcast.except().to(roomName).emit()
       socket.broadcast.to(roomName).emit('ft_message', {
         username: `${payload.username}`,
         message: `님이 ${roomName}에 참가했습니다.`
