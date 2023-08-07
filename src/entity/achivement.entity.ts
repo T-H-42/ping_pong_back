@@ -1,18 +1,17 @@
 // import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
-import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
-export class Achivement extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id : number;
+export class Achievement extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column()
-    user_id : number;
-    
-    @Column({nullable : true})
-    achivement : string;
+  @Column()
+  user_id: number;
 
+  @Column({ nullable: true })
+  achievement: string;
 }
 
 // @Entity()
