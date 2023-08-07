@@ -17,7 +17,7 @@ export class MulterConfigService implements MulterOptionsFactory {
     try {
       fs.readdirSync(this.dirPath);
     } catch (error) {
-      fs.mkdirSync(this.dirPath);
+      fs.mkdirSync(this.dirPath, { recursive: true });
     }
   }
 
