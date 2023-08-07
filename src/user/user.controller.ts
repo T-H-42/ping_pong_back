@@ -11,6 +11,9 @@ import {
   UseGuards,
   UseInterceptors,
   ValidationPipe,
+  Header,
+  Headers,
+  Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login.dto';
@@ -68,25 +71,13 @@ export class UserController {
     return await this.userService.uploadProfileImage(user.username, image);
   }
 
-  // @Get('/friend')
-  // @UseGuards(AuthGuard())
-  // findFriendList(@GetUser() user: User) {
-  //  return this.authService.findFriendList(user);
-  // }
-
-  ///ㄱㅣ조ㄴ의 쿼쿼리리문문입입니니다. (user.service)
-
-  // async findFriendList(user: User) {
-  //  const query = this.userRepository.createQueryBuilder('user');
-  //  query
-  //    .leftJoin('user.friend_one', 'friend')
-  //    .leftJoin('user.friend_two', 'friend2')
-  //    .where('friend.status = true AND friend.user_two = :userId')
-  //    .orWhere('friend2.status = true AND friend2.user_one = :userId')
-  //    .setParameter('userId', user.id)
-  //    .select('user');
-
-  //  const result = await query.getRawMany();
-  //  return result;
-  // }
+  @Get('/token_validation')
+  async tokenValidation(@Headers('authorization') token : string)
+  {
+    const jwtToken = token.split(' ')[1];
+    //const token = body.token;
+    console.log(jwtToken);
+    
+    return await this.userService.tokenValidation(token);
+  }  
 }

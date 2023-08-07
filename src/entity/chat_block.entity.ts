@@ -22,7 +22,7 @@ export class Chat_Block extends BaseEntity {
  백에서 가져와야하는 정준
   - 가능한 것을 던져준다
     - 가능한 것?
-	  - muted나 block이 아닌 "유저 리스트" //유저 리스트에 대한 타입은 미정. 화이트 리스트 형태
+    - muted나 block이 아닌 "유저 리스트" //유저 리스트에 대한 타입은 미정. 화이트 리스트 형태
 */
 
 // target
@@ -145,6 +145,8 @@ msg 눌렀을때, 바로 띄우기보다, muted 상태를 보내주면 프론트
 block으로 except하기만 하면 될듯?
 select "user"."chat_sockid" from (select "user_id" from "chat_block" where "chat_room_id"=1 and "blocked_user_id" = 3) as "A" left join "user" on "user"."id" = "A"."user_id" where "user"."chat_sockid" is not null;
 ㄴ> 나를 block 한 유저들의 socket id >> except할 것임.
+
+create시점하고, join 시점 chat에서 추가하기
 
 
 */

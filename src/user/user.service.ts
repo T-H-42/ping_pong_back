@@ -4,6 +4,8 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Req,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
@@ -22,6 +24,8 @@ import { Any } from 'typeorm';
 import { Socket } from 'dgram';
 import { createReadStream } from 'fs';
 import path from 'path';
+import { JwtStrategy } from './jwt.strategy';
+import * as jwt from 'jsonwebtoken'
 
 @Injectable()
 export class UserService {
@@ -31,6 +35,18 @@ export class UserService {
     private mailService: MailerService,
     private readonly httpService: HttpService,
   ) {}
+
+
+  async tokenValidation(token: string)
+  {
+    try {
+      await jwt.verify(token, 'secret1234');
+      return true;
+    } catch (error) 
+    {
+     throw new UnauthorizedException('Invalid token');
+    }
+  }
 
   async signIn(loginDto: LoginDto, res: Response) {
     const { code } = loginDto;
@@ -126,7 +142,10 @@ export class UserService {
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
-
+    console.log('===========');
+    console.log(accessToken);
+    console.log('===========');
+    
     if (user.two_factor_authentication_status === true) {
       // await this.sendMail(loginDto);
       console.log('user exist');
@@ -134,7 +153,7 @@ export class UserService {
       return res.send({
         two_factor_authentication_status: true,
         username: user.username,
-        accessToken,
+        // accessToken,
       });
     }
 
@@ -237,7 +256,10 @@ export class UserService {
     await this.userRepository.query(query);
   }
 
-  async disconnectGameSocket(username: string) {
+  async disconnectGameSocket(username: string | undefined) {
+    //if (!username) {
+    //  return;
+    //}
     await this.userRepository.update({ username }, { game_sockid: null });
   }
 
