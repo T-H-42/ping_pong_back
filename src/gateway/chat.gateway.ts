@@ -110,6 +110,10 @@ export class ChatGateway
       return error;
     }
 
+    //Muted이면 즉시 리턴만해서 처리 -> 아니면 관련 데이터 모두 삭제.
+
+    //block을 제외한 유저에게 보내기
+    //메시지 로그 남기기 -> 일단 블록된 유저까지 로그로 다 보여줄 생각임.
     await socket.broadcast.to(roomName).emit('ft_message', {
       username: `${payload.username}`,
       message,
@@ -187,18 +191,18 @@ export class ChatGateway
     const userId = requestUser.id;
 
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) !== true)
-    //ban이면 넣지않음.
-      if ((await this.chatRoomService.isBanedUser(userId, roomName)) == false) //ban되지 않은 경우만 넣기
-        await this.chatRoomService.joinUserToRoom(userId, roomName, false); //이미 유저 네임이 있으면 만들지 않음
+      await this.chatRoomService.joinUserToRoom(userId, roomName, false); //이미 유저 네임이 있으면 만들지 않음
+    if ((await this.chatRoomService.isBanedUser(userId, roomName)) == true) //ban되지 않은 경우만 넣기
+    {
+      return { success: false }; ///banedUser;
+    }
     socket.join(roomName);
-
     // console.log(payload.username, ' ', socket.id);
     // socket.broadcast.except().to(roomName).emit()
     socket.broadcast.to(roomName).emit('ft_message', {
       username: `${payload.username}`,
       message: `님이 ${roomName}에 참가했습니다.`,
     });
-
     return { success: true }; //
   }
 
@@ -215,6 +219,15 @@ export class ChatGateway
     } catch (error) {
       //나중에 throw 로 교체
       return error;
+    }
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    );
+    const userId = requestUser.id;
+    await this.chatRoomService.leaveUserFromRoom(userId, roomName);
+    if (await this.chatRoomService.isEmptyRoom(roomName) === true) //방에 인원 없으면 메시지 로그 다 없애기 리턴값 찍어보기, 테스트 필요함
+    {
+      await this.chatRoomService.deleteChatInformation(roomName);
     }
     socket.leave(roomName);
     socket.broadcast.to(roomName).emit('ft_message', {
@@ -281,7 +294,7 @@ export class ChatGateway
       payload.username,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
     const userId = requestUser.id;
-    await this.chatRoomService.leaveUserToRoom(userId, roomName);
+    await this.chatRoomService.leaveUserFromRoom(userId, roomName);
     socket.leave(roomName); //DM과 다르게, 상대방 소켓을 찾아내서 leave 시켜야 한다.
     socket.broadcast.to(roomName).emit('ft_message', {
       username: `${payload.username}`,

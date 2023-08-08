@@ -42,7 +42,7 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query);
     }
 
-    async leaveUserToRoom(userid : number, roomName : string)
+    async leaveUserFromRoom(userid : number, roomName : string)
     {
         console.log("in leave User in ROOM");
         const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}';`;
@@ -97,6 +97,48 @@ export class ChatRoomService {
             return false;
         return true;
         //select * from "chat_ban" where "index" = '${roomName}' and "ban_user_id" = ${userId};
+    }
+
+    async isEmptyRoom(roomName : string)
+    {
+        const query = `select "curr_user" from "chat_room" where "index" = '${roomName}'`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret[0].curr_user === 0)
+            return true;
+        return false;
+    }
+
+    async deleteChatInformation(roomName : string)
+    {
+        //baned,user,room,block -> 관련 모두 삭제
+        await this.deleteChatUserRoom(roomName);
+        await this.deleteBanUserChatRoom(roomName);
+        await this.deleteBlockChatRoom(roomName);
+        await this.deleteChatRoom(roomName);
+    }
+
+    async deleteChatUserRoom(roomName : string)
+    {
+        const query = `delete from "chat_user" where "index" = '${roomName}';`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    async deleteBanUserChatRoom(roomName : string)
+    {
+        const query = `delete from "chat_ban" where "index" = '${roomName}';`;
+        await this.chatRoomRepository.query(query);
+    }
+    
+    async deleteBlockChatRoom(roomName : string)
+    {
+        const query = `delete from "chat_block" where "index" = '${roomName}';`;
+        await this.chatRoomRepository.query(query);
+    }
+    
+    async deleteChatRoom(roomName : string)
+    {
+        const query = `delete from "chat_room" where "index" = '${roomName}';`;
+        await this.chatRoomRepository.query(query);
     }
     /*
     ///////////////////////채팅방 정보 Scope!///////////////////////
