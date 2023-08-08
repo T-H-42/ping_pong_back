@@ -55,9 +55,9 @@ export class UserService {
     // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
     const oauthConfig = config.get('oauth');
-    console.log(
-      '======================================== sigin in ===============================',
-    );
+    // console.log(
+    //   '======================================== sigin in ===============================',
+    // );
     console.log('redir', oauthConfig.oauth_redirect_uri);
     const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${oauthConfig.oauth_id}&client_secret=${oauthConfig.oauth_secret}&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
@@ -74,13 +74,13 @@ export class UserService {
         }),
       ),
     );
-    console.log(
-      '======================================== sigin in2 ===============================',
-    );
+    // console.log(
+    //   '======================================== sigin in2 ===============================',
+    // );
     const headers = {
       Authorization: `Bearer ${data.access_token}`,
     };
-    console.log(data.access_token);
+    // console.log(data.access_token);
     const _url = 'https://api.intra.42.fr/v2/me';
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
