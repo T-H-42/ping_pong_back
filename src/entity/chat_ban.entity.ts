@@ -6,7 +6,7 @@ export class Chat_Ban extends BaseEntity{
     id : number;
 
     @Column()
-    index : number;
+    index : string;
 
 	@Column()
 	ban_user_id : number;

@@ -13,8 +13,21 @@ export class ChatRoomService {
 
     async createChatRoom(userid : number, roomName : string, status: number, password : string, limitUser : number)
     {
-        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, index) values (${userid}, ${status}, '${password}', ${limitUser}, '${roomName}');`;
+        console.log("========");
+        console.log(userid);
+        console.log(userid, roomName, status, password, limitUser);
+        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, index, curr_user) values (${userid}, ${status}, '${password}', ${limitUser}, '${roomName}', 0);`;
         await this.chatRoomRepository.query(query);
+    }
+
+    async validateSpaceInRoom(roomName : string)
+    {
+        const query = `select * from "chat_room" where "curr_user" < "limit_user" and "index" = '${roomName}'`;
+        const ret = await this.chatRoomRepository.query(query);
+
+        if (ret.length === 0)
+            return false;
+        return true;
     }
 
     async isExistRoom(roomName : string)
@@ -34,18 +47,20 @@ export class ChatRoomService {
         return await this.chatRoomRepository.query(query);
     }
 
-    async joinUserToRoom(userid : number, roomName : string, is_admin : boolean)
+    async joinUserToRoom(userid : number, roomName : string, right : number)
     {
         ///예외처리 붙어야 함.
         console.log("in join UserToROOM");
-        const query = `insert into "chat_user"("index","user_id","is_admin") values('${roomName}', '${userid}' , ${is_admin})`;
+        const query = `insert into "chat_user"("index","user_id","right") values('${roomName}', '${userid}' , ${right});
+        update "chat_room" set "curr_user" = "curr_user"+1 where "index" = '${roomName}'`;
         await this.chatRoomRepository.query(query);
     }
 
     async leaveUserFromRoom(userid : number, roomName : string)
     {
         console.log("in leave User in ROOM");
-        const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}';`;
+        const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
+        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         await this.chatRoomRepository.query(query);
     }
     
@@ -57,7 +72,7 @@ export class ChatRoomService {
         console.log(ret);
         console.log("======= isNeedDmNoti? =======");
 
-        if (ret.length !== 2)
+        if (ret.length !== 2) //2
             return true;
         return false;
     }
@@ -72,19 +87,25 @@ export class ChatRoomService {
 
     async saveMessage(roomName : string, userid : number, message : string)
     {
-        const query = `insert into "chat_room_msg"("index", "user_id", "msg", "time") values('${roomName}',${userid},'${message}', now());`;
+        const query = `insert into "chat_room_msg"("index", "user_id", "message", "time") values('${roomName}',${userid},'${message}', now());`;
         await this.chatRoomRepository.query(query);
     }
 
     async getDmMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
     {
-        const query = `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        return await this.chatRoomRepository.query(query);
+    }
+
+    async getChatMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
+    {
+        const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
         return await this.chatRoomRepository.query(query);
     }
 
     async getRoomList() ///ban이어도 상관없이 보이기는 할 예정
     {
-        const query = `select "index" from "chat_room";`;
+        const query = `select "index","room_stat" from "chat_room" where "room_stat" = 0 or "room_stat" = 1;`; //비공개방 안보여줄것임
         return await this.chatRoomRepository.query(query);
         //string 배열로 재가공하고 던져줄 예정
     }
@@ -140,14 +161,25 @@ export class ChatRoomService {
         const query = `delete from "chat_room" where "index" = '${roomName}';`;
         await this.chatRoomRepository.query(query);
     }
-    /*
     ///////////////////////채팅방 정보 Scope!///////////////////////
-    async getUserListInChatRoom(requestUser : username or id, roomName : string) chat_user를 다 가져오면 될것.
+    
+    
+    async getUserListInChatRoom(requestUserName : string, roomName : string)//chat_user를 다 가져오면 될것.
     {
-        1. admin과 chat_user가 합쳐졌다고 가정한 쿼리 (right - 0,1,2 -> 0 == owner, 1 == admin, 2 == 일반유저 이런 식의 약속 필요하긴함)
-        select * from "chat_user" where "index" = '${roomName}';
+        // 1. admin과 chat_user가 합쳐졌다고 가정한 쿼리 (right - 0,1,2 -> 0 == just, 1 == admin, 2 == Owner 이런 식의 약속 필요하긴함)
+        const query = `select * from "chat_user" where "index" = '${roomName}';`;
+        return await this.chatRoomRepository.query(query);
+
+        /*
+        return 양식
+        [
+            {  id : number, c | user_id | index | mute_end_time | right }
+
+        ]
+        */
     }
 
+    /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
     async checkReqUserRight(requestUserId : number, roomName : string) admin인지 오너인지 확인해줘야 함. -> admin,owner면 그에 맞는 버튼은 그 뒤의 모달에서 보여줘야 할 것.
     {
