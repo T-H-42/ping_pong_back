@@ -120,17 +120,21 @@ export class ChatGateway
 
   // 채팅방(룸) 목록 반환
   @SubscribeMessage('room-list')
-  handleRoomList() {
+  async handleRoomList() {
     this.logger.log('채팅방 목록 반환하기 호출');
+    const list = await this.chatRoomService.getRoomList();
+    ////
     return createdRooms;
   }
 
   // 채팅방(룸) 만들기
-  @SubscribeMessage('create-room') //chat_room세팅 및 admin 테이블에 세팅
+  @SubscribeMessage('create-room') //chat_room세팅 및 admin 테이블에 세팅 -> dm은 3, 공개방은 0, 비밀번호방1, 비공개방 2 -> 접근은 초대로만
   async handleCreateRoom(
     @ConnectedSocket() socket: Socket,
-    @MessageBody() roomName: string,
-    @MessageBody() status: string, /////
+    @MessageBody() roomName: string, //////////////////////// msgBody 부분대로 줘야함.
+    @MessageBody() status: number, ///// 방
+    @MessageBody() password: string, ///// 비밀번호
+    @MessageBody() limitUser: number, ///// 제한인원
   ) {
     let payload;
     try {
@@ -145,13 +149,15 @@ export class ChatGateway
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
     if (isExist !== true) {
-      await this.chatRoomService.createDmRoom(userId, roomName);
+      await this.chatRoomService.createChatRoom(userId, roomName, status ,password, limitUser);
     }
     else{
       return { success: false, payload: `${roomName} 방이 이미 존재합니다.` };
     }
-
+    
     console.log('creat room name: ', roomName);
+    if ((await this.chatRoomService.isUserInRoom(userId, roomName)) !== true)
+      await this.chatRoomService.joinUserToRoom(userId, roomName, true); //이미 유저 네임이 있으면 만들지 않음
     socket.join(roomName);
     console.log(`${payload.username} ${socket.id}`);
     createdRooms.push(roomName);
@@ -168,7 +174,6 @@ export class ChatGateway
     @MessageBody() roomName: string,
   ) {
     this.logger.log('채팅방 입장하기 호출: ', socket.id);
-    socket.join(roomName);
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -182,7 +187,9 @@ export class ChatGateway
     const userId = requestUser.id;
 
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) !== true)
-      await this.chatRoomService.joinUserToRoom(userId, roomName); //이미 유저 네임이 있으면 만들지 않음
+    //ban이면 넣지않음.
+      if ((await this.chatRoomService.isBanedUser(userId, roomName)) == false) //ban되지 않은 경우만 넣기
+        await this.chatRoomService.joinUserToRoom(userId, roomName, false); //이미 유저 네임이 있으면 만들지 않음
     socket.join(roomName);
 
     // console.log(payload.username, ' ', socket.id);
@@ -249,7 +256,7 @@ export class ChatGateway
       await this.chatRoomService.createDmRoom(userId, roomName);
     }
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) !== true)
-      await this.chatRoomService.joinUserToRoom(userId, roomName); //이미 유저 네임이 있으면 만들지 않음
+      await this.chatRoomService.joinUserToRoom(userId, roomName, false); //이미 유저 네임이 있으면 만들지 않음
     socket.join(roomName);
     console.log('========???여기까지???');
     return { success: true, index: roomName };
@@ -333,6 +340,32 @@ export class ChatGateway
     }
     return { username: payload.username, message, status };
   }
+
+  @SubscribeMessage('ft_get_dm_log') //Daskim -> roomName -> Back
+  async dmLogAPI(
+    //정상동작으로 만든 뒤, 함수명만 바꿔서 잘 동작하는 지 확인(handleMessage가 예약어인지 확인 필요)
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() { roomName }: MessagePayload,
+  ) {
+    return (await this.chatRoomService.getDmMessage(roomName)); ///emit 필요없음. API이므로
+    // return 형식
+    // [
+    //   { username: 'nhwang', msg: 'sdafsd' },
+    //   { username: 'nhwang', msg: 'sajlkfjsdklfsd' },
+    //   { username: 'taeheonk', msg: '에베베' },
+    //   { username: 'nhwang', msg: 'ㅎㅏ이' },
+    //   { username: 'taeheonk', msg: '에에비비에에비' },
+    //   { username: 'nhwang', msg: 'ㄴㄴㅇㅇㅁㅁㄹㄴㅇㄹㅇㄴㅁ' },
+    //   { username: 'nhwang', msg: 'ㅗㅗㅓㅓㅏㅏㅗㅗㅓㅓㅏㅏㅗㅗ' },
+    //   { username: 'taeheonk', msg: '에비에비에비' },
+    //   { username: 'nhwang', msg: 'ㄴ멍리아ㅓㅂ젇갸ㅐㅈㄷㄷㅂㅂ\\' },
+    //   { username: 'nhwang', msg: '하하이이하하이이' },
+    //   { username: 'nhwang', msg: '신신기기하하다다' },
+    //   { username: 'nhwang', msg: '아민러ㅏㅣㄴ얼' },
+    //   { username: 'nhwang', msg: 'dasfds' }
+    //   ]
+  }
+  
   ////////////////////////////////////// - DM Scope - end //////////////////////////////////////
 
   async getPayload(socket: Socket) {

@@ -18,4 +18,11 @@ export class Chat_User extends BaseEntity
     //chat_title -> index
     @Column()
     index: string;
+
+    @Column({nullable: true})
+    mute_end_time : string;
+
+    @Column({nullable: true})
+    is_admin : boolean;
+
 }

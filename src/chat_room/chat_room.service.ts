@@ -11,6 +11,12 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query);
     }
 
+    async createChatRoom(userid : number, roomName : string, status: number, password : string, limitUser : number)
+    {
+        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, index) values (${userid}, ${status}, '${password}', ${limitUser}, '${roomName}');`;
+        await this.chatRoomRepository.query(query);
+    }
+
     async isExistRoom(roomName : string)
     {
         const query = `select * from "chat_room" where "index" = '${roomName}';`; ///
@@ -28,11 +34,11 @@ export class ChatRoomService {
         return await this.chatRoomRepository.query(query);
     }
 
-    async joinUserToRoom(userid : number, roomName : string)
+    async joinUserToRoom(userid : number, roomName : string, is_admin : boolean)
     {
         ///예외처리 붙어야 함.
         console.log("in join UserToROOM");
-        const query = `insert into "chat_user"("index","user_id") values('${roomName}', '${userid}')`;
+        const query = `insert into "chat_user"("index","user_id","is_admin") values('${roomName}', '${userid}' , ${is_admin})`;
         await this.chatRoomRepository.query(query);
     }
 
@@ -72,28 +78,25 @@ export class ChatRoomService {
 
     async getDmMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
     {
-        const query = `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='nhwang,taeheonk') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        const query = `select "user"."username", "A"."msg" from (select msg,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
         return await this.chatRoomRepository.query(query);
+    }
 
-        /*
-        dmAPI_check
-        [
-        { username: 'nhwang', msg: 'sdafsd' },
-        { username: 'nhwang', msg: 'sajlkfjsdklfsd' },
-        { username: 'taeheonk', msg: '에베베' },
-        { username: 'nhwang', msg: 'ㅎㅏ이' },
-        { username: 'taeheonk', msg: '에에비비에에비' },
-        { username: 'nhwang', msg: 'ㄴㄴㅇㅇㅁㅁㄹㄴㅇㄹㅇㄴㅁ' },
-        { username: 'nhwang', msg: 'ㅗㅗㅓㅓㅏㅏㅗㅗㅓㅓㅏㅏㅗㅗ' },
-        { username: 'taeheonk', msg: '에비에비에비' },
-        { username: 'nhwang', msg: 'ㄴ멍리아ㅓㅂ젇갸ㅐㅈㄷㄷㅂㅂ\\' },
-        { username: 'nhwang', msg: '하하이이하하이이' },
-        { username: 'nhwang', msg: '신신기기하하다다' },
-        { username: 'nhwang', msg: '아민러ㅏㅣㄴ얼' },
-        { username: 'nhwang', msg: 'dasfds' }
-        ]
-dmAPI_check
-        */
+    async getRoomList() ///ban이어도 상관없이 보이기는 할 예정
+    {
+        const query = `select "index" from "chat_room";`;
+        return await this.chatRoomRepository.query(query);
+        //string 배열로 재가공하고 던져줄 예정
+    }
+
+    async isBanedUser(userId : number, roomName : string)
+    {
+        const query = `select * from "chat_ban" where "index" = '${roomName}' and "ban_user_id" = ${userId};`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length === 0)
+            return false;
+        return true;
+        //select * from "chat_ban" where "index" = '${roomName}' and "ban_user_id" = ${userId};
     }
     /*
     ///////////////////////채팅방 정보 Scope!///////////////////////
