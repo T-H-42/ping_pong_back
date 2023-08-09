@@ -79,6 +79,7 @@ export class ChatGateway
     try {
       const payload = await this.getPayload(socket);
       await this.userService.disconnectChatSocket(payload.username);
+      /////////여기서 chat 관련 데이터 다 삭제
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('get payload err in chatDisconnect');
@@ -135,9 +136,8 @@ export class ChatGateway
   @SubscribeMessage('create-room') //chat_room세팅 및 admin 테이블에 세팅 -> dm은 3, 공개방은 0, 비밀번호방1, 비공개방 2 -> 접근은 초대로만
   async handleCreateRoom(
     @ConnectedSocket() socket: Socket,
-    @MessageBody() _Data:string /////안에 숫자가 있는데, 이거는 어캐하지...
+    @MessageBody() _Data:string /////안에 숫자가 있는데, 이거는 어캐하지.... roomName, status, password, limitUser
   ) {
-
     if (_Data["roomName"].length === 0)
       return { success: false, payload: `채팅방 이름을 지정해야합니다.` };
     if (_Data["limitUser"] <1 || _Data["limitUser"] > 8)
@@ -163,7 +163,6 @@ export class ChatGateway
       return { success: false, payload: `${_Data["roomName"]} 방이 이미 존재합니다.` };
     }
     
-    // console.log('creat room name: ', _Data["roomName"]);
     //validateSpaceInRoom()
     if ((await this.chatRoomService.isUserInRoom(userId, _Data["roomName"])) === false) //&& limit_user vs curr_user) // limit 유저보다 작아야만 함. 반드시
       await this.chatRoomService.joinUserToRoom(userId, _Data["roomName"], 2); //이미 유저 네임이 있으면 만들지 않음
@@ -175,11 +174,6 @@ export class ChatGateway
     socket.broadcast.emit("room-list",list);
     // this.nsp.emit('create-room', {index: _Data["roomName"], limit_user:_Data["limitUser"],room_stat: _Data["status"]});
     // socket.emit('create-room', _Data["roomName"]);
-    /*
-    index: string;
-    limit_user: number;
-    room_stat: number;
-    */
     return { success: true, payload: _Data["roomName"] };
   }
 
@@ -188,9 +182,8 @@ export class ChatGateway
   async handleJoinRoom(
     @ConnectedSocket() socket: Socket, //{roomName:name1, password:null}
     @MessageBody() _Data: string //password 방인 경우에, 유저가 입력한 password까지 줘야하므로, 1. status가 1인 비번방의 경우, join-room의 시점이 다르도록! 다른 컴포넌트필요
-  ) {                                //2. 다른 양식으로 줘야함. -> password(nullable) 포함해서.... -> 없으면 그냥 받은 그대로 널값 주기.
-                                     //3. 비밀번호 비교 로직 진행. (접근도 바뀐 _Data[]양식으로 하면 될듯)
-    //roomName, password
+  ) {                   
+
     console.log("=======in join room======");
     console.log(_Data);
     console.log("=======in join room======");
@@ -210,7 +203,7 @@ export class ChatGateway
       payload.username,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
     const userId = requestUser.id;
-    if ((await this.chatRoomService.isBanedUser(userId, _Data["roomName"])) == true) //ban되지 않은 경우만 넣기
+    if ((await this.chatRoomService.isBanedUser(userId, _Data["roomName"])) === true) //ban되지 않은 경우만 넣기
     {
       console.log("is Ban?");
       return { success: false }; ///banedUser;
@@ -338,12 +331,6 @@ export class ChatGateway
     @ConnectedSocket() socket: Socket,
     @MessageBody() { roomName, message, receiver }: MessagePayload,
   ) {
-    // console.log('======ft_dm 이벤트 수신======');
-    // console.log(message);
-    // console.log(roomName);
-    // console.log(receiver);
-    // console.log('======ft_dm 이벤트 수신======');
-
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -368,7 +355,6 @@ export class ChatGateway
       console.log('========???여기까지???3333');
 
       await socket.broadcast.to(friends).emit('ft_dm', {
-        //상대방에게 필요함. status에 따라 내가 쏘는 부분도 다름
         username: `${payload.username}`,
         message,
         status,
@@ -385,7 +371,6 @@ export class ChatGateway
 
   @SubscribeMessage('ft_get_dm_log') //Daskim -> roomName -> Back
   async dmLogAPI(
-    //정상동작으로 만든 뒤, 함수명만 바꿔서 잘 동작하는 지 확인(handleMessage가 예약어인지 확인 필요)
     @ConnectedSocket() socket: Socket,
     @MessageBody() { roomName }: MessagePayload,
   ) {
@@ -420,12 +405,8 @@ export class ChatGateway
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
   ) {
-      console.log("=========in ft_isEmptyRoom=========");
-      console.log(roomName);
-      console.log("=========in ft_isEmptyRoom=========");
-
       return (await this.chatRoomService.isEmptyRoom(roomName));
-  }
+    }
 
   @SubscribeMessage('ft_addAdmin')
   async addAdmin(
@@ -433,8 +414,6 @@ export class ChatGateway
     @MessageBody() _Data: string, //roomName, 상대방 targetUser
   )
   {
-    
-
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -449,34 +428,50 @@ export class ChatGateway
       const targetUserId = targetUser.id;
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
-    if (targetUserRight === 2)
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
-      
+    if (targetUserRight >= 1) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    await this.chatRoomService.setAdmin(_Data["roomName"], targetUserId);
+    socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
+    });
+    return {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
+    };
+    
+    
+    /*
+    방식1. ft_message 이벤트로 join-room, leave-room 처럼 
+    ft_getUserListInRoom을 쏴준다면? 아래에서 emit에 대한 로직이 F/B 모두 추가가 되어야 할 것. 이벤트 발생때마다 모달을 띄워버리면,
+    "채팅방 정보" 버튼 클릭안한 사용자에게도 띄워버리는건지?? 이게 안되면 그냥 Message안에서 처리하는 방안도 있음.
+    */
 
 
-    //상대방의 userId 겟하기. -> 나중에 쏴줄거임. chat 방안에서
     //데이터 값 바꾸고, 상대방의 소켓아이디에 쏴주고, 요구자는 return.
   }
 
 
   
 
-  @SubscribeMessage('ft_getUserListInRoom')
+  @SubscribeMessage('ft_getUserListInRoom') //front위해 스스스스로로가  just,admin,Owner인지에 대한 값을 넣어줄지 생각필요
   async getUserListInRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
   )
-  {
+  { //리스트를 받아오는 로직인데, 제 3자가 이벤트를 발생시키면?? - emit으로 관리자인지, mute인지, 등등 이벤트 명을 주는 것을 하는건 어떤지?
     return (await this.chatRoomService.getUserListInChatRoom(roomName));
   }
+
+
+
+
 
 
   ////////////////////////////////////////// Payload //////////////////////////////////////////
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
-    // this.logger.log("======chat token in get payload=======");
     this.logger.log(token);
-    // this.logger.log("======chat token in get payload=======");
     const serverConfig = config.get('jwt');
     const secret = serverConfig.secret;
     return (await jwt.verify(token, secret)) as any;

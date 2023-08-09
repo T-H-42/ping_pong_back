@@ -246,9 +246,14 @@ export class ChatRoomService {
 
     async checkRight(roomName : string, targetUserId : number)
     {
-        const query = `select "right" from "chat_user" where "index" = ${roomName} and  "user_id"=${targetUserId};`;
-        const obj = this.chatRoomRepository.query(query);
+        const query = `select "right" from "chat_user" where "index" = '${roomName}' and  "user_id"=${targetUserId};`;
+        const obj = await this.chatRoomRepository.query(query);
         return (obj[0].right);
+    }
+    async setAdmin(roomName : string, targetUserId :number)
+    {
+        const query = `update "chat_user" set "right" = 1 where "index" = '${roomName}' and "user_id" = ${targetUserId}`;
+        await this.chatRoomRepository.query(query);
     }
 
     /*
