@@ -78,6 +78,8 @@ export class ChatRoomService {
     }
     async isUserInRoom(userid : number, roomName : string)
     {
+        if (roomName === null)
+            return false;
         const query = `select * from "chat_user" where ("index" = '${roomName}' and "user_id" = ${userid});`; ///
         const queryList = await this.chatRoomRepository.query(query);
         if (queryList.length === 0)
@@ -97,15 +99,31 @@ export class ChatRoomService {
         return await this.chatRoomRepository.query(query);
     }
 
-    async getChatMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
-    {
-        const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+    async getChatMessage(userId : number, roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌. //내가 블록한 사람 빼고!
+    {           
+        //select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang');
+        //as "A"
+        console.log("==========================================");
+        console.log("in getChatMessage : ", userId, roomName);
+        console.log("==========================================");
+
+
+        //select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = 'hyna,nhwang'; ->>>
+        //ㄴ> 차단안한 유저의 아이디와 메시지, time as "B"
+
+
+        //select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = 'hyna,nhwang') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;
+
+        
+        // const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = '${roomName}' and "user_id" = ${userId}) and "chat_user"."user_id"!=${userId} and index = '${roomName}')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = '${roomName}') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
+        const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = '${roomName}' and "user_id" = ${userId}) and index = '${roomName}')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = '${roomName}') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
+        
         return await this.chatRoomRepository.query(query);
     }
 
     async getRoomList() ///ban이어도 상관없이 보이기는 할 예정
     {
-        const query = `select "index","room_stat" from "chat_room" where "room_stat" = 0 or "room_stat" = 1;`; //비공개방 안보여줄것임
+        const query = `select "index","room_stat","limit_user" from "chat_room" where "room_stat" = 0 or "room_stat" = 1;`; //비공개방 안보여줄것임
         return await this.chatRoomRepository.query(query);
         //string 배열로 재가공하고 던져줄 예정
     }
@@ -122,9 +140,15 @@ export class ChatRoomService {
 
     async isEmptyRoom(roomName : string)
     {
-        const query = `select "curr_user" from "chat_room" where "index" = '${roomName}'`;
+        if (roomName === undefined)
+            return true;
+        console.log("======?=======");
+        console.log(roomName);
+        console.log("======?=======");
+        const query = `select "curr_user" from "chat_room" where "index" = '${roomName}' and "curr_user" > 0;`;
         const ret = await this.chatRoomRepository.query(query);
-        if (ret[0].curr_user === 0)
+        console.log("======af query=======");
+        if (ret.length=== 0)
             return true;
         return false;
     }
@@ -136,6 +160,13 @@ export class ChatRoomService {
         await this.deleteBanUserChatRoom(roomName);
         await this.deleteBlockChatRoom(roomName);
         await this.deleteChatRoom(roomName);
+        ///dm이 아닐 경우! message delete!
+    }
+
+    async deleteChatMessage(roomName:string)
+    {
+        // const query = `delete from "chat_room_msg" where `
+        // 
     }
 
     async deleteChatUserRoom(roomName : string)
@@ -164,19 +195,60 @@ export class ChatRoomService {
     ///////////////////////채팅방 정보 Scope!///////////////////////
     
     
-    async getUserListInChatRoom(requestUserName : string, roomName : string)//chat_user를 다 가져오면 될것.
+    async getUserListInChatRoom(roomName : string)//chat_user를 다 가져오면 될것. ///del requestUserName : string,
     {
         // 1. admin과 chat_user가 합쳐졌다고 가정한 쿼리 (right - 0,1,2 -> 0 == just, 1 == admin, 2 == Owner 이런 식의 약속 필요하긴함)
-        const query = `select * from "chat_user" where "index" = '${roomName}';`;
+        // const query = `select * from "chat_user" where "index" = '${roomName}';`;
+        const query = `select "user"."username", "A"."right" from (select * from "chat_user" where "index" = '${roomName}') as "A" left join "user" on "user"."id" = "A"."user_id";`;
         return await this.chatRoomRepository.query(query);
 
-        /*
-        return 양식
-        [
-            {  id : number, c | user_id | index | mute_end_time | right }
+        // select * from "chat_user" where "index" = '${roomName}';
+        // ㄴ> as "A"
+        // select "user"."username", "A"."right" from (select * from "chat_user" where "index" = '123') as "A" left join "user" on "user"."id" = "A"."user_id";
+        
+    }
 
-        ]
-        */
+    async findWhoBlockedMe(userId :number, roomName : string)
+    {
+        //select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10;
+        //ㄴ> 날 블록한 유저 id -> as A
+        // select "user"."socketid" from (select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10) as "A" left join "user" on "user"."id" = "A"."user_id";
+        const query = `select "user"."socketid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const ret = await this.chatRoomRepository.query(query);
+        let _return = [];
+        ret.map((i) => {
+            if (i.socketid !== null)
+                _return.push(i.socketid);
+        });
+
+        return _return;
+    }
+    
+    async isValidPassword(roomName:string, password : string)
+    {
+        const query = `select "password" from "chat_room" where index='${roomName}';`;
+        const obj = await this.chatRoomRepository.query(query);
+        if (obj[0].password === password) ///복호화 할 필요가 없음!
+            return true;
+        return false;
+    }
+
+
+    async isMuted(roomName : string, userId : number){
+        //상황에 따라 이벤트 쏠수 있도록? -> ft_message에서 처리하는 방식이라면 여기서 로직 추가
+        
+        const query = `select "mute_end_time" from "chat_user" where "index" = '비번방~' and "user_id" = 10 and "mute_end_time"::timestamp > NOW();`;
+        const obj = await this.chatRoomRepository.query(query);
+        if (obj.length===0)
+            return false;
+        return true;
+    }
+
+    async checkRight(roomName : string, targetUserId : number)
+    {
+        const query = `select "right" from "chat_user" where "index" = ${roomName} and  "user_id"=${targetUserId};`;
+        const obj = this.chatRoomRepository.query(query);
+        return (obj[0].right);
     }
 
     /*
