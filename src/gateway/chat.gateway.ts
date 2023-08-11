@@ -28,7 +28,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.5:3000'],
+    origin: ['http://localhost:3000'],
   },
 })
 export class ChatGateway
@@ -146,8 +146,7 @@ export class ChatGateway
     const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
     if (isExist !== true) {
       await this.chatRoomService.createDmRoom(userId, roomName);
-    }
-    else{
+    } else {
       return { success: false, payload: `${roomName} 방이 이미 존재합니다.` };
     }
 

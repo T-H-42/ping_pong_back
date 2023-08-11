@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -17,7 +18,7 @@ import * as crypto from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CertificateDto } from './dto/certificate.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { HttpService } from '@nestjs/axios';
 import * as config from 'config';
 import { Any } from 'typeorm';
@@ -25,7 +26,7 @@ import { Socket } from 'dgram';
 import { createReadStream } from 'fs';
 import path from 'path';
 import { JwtStrategy } from './jwt.strategy';
-import * as jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class UserService {
@@ -36,15 +37,12 @@ export class UserService {
     private readonly httpService: HttpService,
   ) {}
 
-
-  async tokenValidation(token: string)
-  {
+  async tokenValidation(token: string) {
     try {
       await jwt.verify(token, 'secret1234');
       return true;
-    } catch (error) 
-    {
-     throw new UnauthorizedException('Invalid token');
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
     }
   }
 
@@ -145,7 +143,7 @@ export class UserService {
     console.log('===========');
     console.log(accessToken);
     console.log('===========');
-    
+
     if (user.two_factor_authentication_status === true) {
       // await this.sendMail(loginDto);
       console.log('user exist');
@@ -341,6 +339,46 @@ export class UserService {
       image.filename,
     );
     if (!imageUpdate.affected) throw new UnauthorizedException();
+    return 'succeed';
+  }
+
+  async changeNickname(user: User, nickname: string) {
+    if (user.username !== nickname) {
+      const oath = config.get('oauth');
+      const token = await axios
+        .post('https://api.intra.42.fr/oauth/token', {
+          grant_type: 'client_credentials',
+          client_id: oath.oauth_id,
+          client_secret: oath.oauth_secret,
+        })
+        .then((res) => {
+          return res.data.access_token;
+        });
+      const res = await axios
+        .get(`https://api.intra.42.fr/v2/users/${nickname}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        .then((res) => {
+          return '닉네임은 다른 사람의 intraID로 생성 불가능합니다.';
+        })
+        .catch((error) => {
+          return '';
+        });
+      if (res) {
+        throw new BadRequestException(
+          '닉네임은 다른 사람의 intraID로 생성 불가능합니다.',
+        );
+      }
+    }
+    const nicknameUpdate = await this.userRepository.updateNickname(
+      user.username,
+      nickname,
+    );
+    if (!nicknameUpdate.affected) {
+      throw new InternalServerErrorException('Something went wrong');
+    }
     return 'succeed';
   }
 }
