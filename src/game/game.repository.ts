@@ -10,11 +10,37 @@ export class GameRepository extends Repository<Game> {
   }
 
   async createGame(user1: User, user2: User) {
-    const game = await this.create({
-      winner: user1.id,
-      loser: user2.id,
-      finished: false,
-    });
-    return game;
+    // console.log('여긴가?');
+    // await this.query(`insert into game (winner, loser, finished) values (${user1.id}, ${user2.id}, false)`);
+    // console.log('여기맞네');
+    this.query(`
+      insert into game (winner, loser, finished)
+      values (${user1.id}, ${user2.id}, false)`);
+    // return game;
+  }
+
+  async getUserByGameSockId(game_sockid: string): Promise<User> {
+    const [user] = await this.query(
+      `select * from "user" where game_sockid = '${game_sockid}'`,
+    );
+    return user;
+  }
+
+  async finishGame(winner: User, loser: User) {
+    if (winner === undefined || loser === undefined) {
+      console.log('user 정보 없음');
+      return;
+    }
+    const result = await this.query(`
+      select game_id from game
+      where (winner = ${winner.id} or loser = ${winner.id}) and finished = false`);
+    const game_id = result[0].game_id;
+    // 나중에 시간 추가
+    const query = `
+      update game
+      set winner = ${winner.id}, loser = ${loser.id}, finished = true
+      where game_id = ${game_id}`;
+    await this.query(query);
   }
 }
+

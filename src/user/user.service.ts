@@ -136,9 +136,9 @@ export class UserService {
       username: user.username,
       id: user.id,
     };
-    console.log('===========');
-    console.log(user);
-    console.log('===========');
+    // console.log('===========');
+    // console.log(user);
+    // console.log('===========');
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
@@ -260,6 +260,7 @@ export class UserService {
     //if (!username) {
     //  return;
     //}
+    console.log('disconnectGameSocket');
     await this.userRepository.update({ username }, { game_sockid: null });
   }
 

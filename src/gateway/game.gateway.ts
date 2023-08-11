@@ -6,6 +6,29 @@ import * as config from 'config';
 import * as jwt from 'jsonwebtoken';
 import { UserService } from 'src/user/user.service';
 import { GameService } from 'src/game/game.service';
+import { clear } from 'console';
+import e from 'express';
+
+// 게임 설정 인터페이스
+interface GameInformation {
+  sockets: Socket[];
+  score: number;
+  timer: NodeJS.Timeout | null;
+  element: GameElement | null;
+  velocityX: number
+  velocityY: number
+  leftPaddleStatus: number
+  rightPaddleStatus: number
+}
+
+// Back -> front
+interface GameElement {
+  leftPaddle: Paddle,
+  rightPaddle: Paddle,
+  ball: Ball,
+  score: Score,
+}
+
 
 interface Paddle {
   x: number
@@ -18,39 +41,12 @@ interface Ball {
   x: number
   y: number
   radius: number
-  velocityX: number
-  velocityY: number
 }
 
 interface Score {
   left: number
   right: number
 }
-
-// Back -> front
-interface GameElement {
-  leftPaddle: Paddle,
-  rightPaddle: Paddle,
-  ball: Ball,
-  score: Score,
-}
-
-
-// 게임 설정 인터페이스
-interface GameInformation {
-  sockets: Socket[];
-  speed: number;
-  score: number;
-  timer: NodeJS.Timeout | null;
-  element: GameElement | null;
-}
-
-interface ISettingInformation {
-  score: number;
-  speed: number;
-  roomName: string;
-}
-
 
 @WebSocketGateway({
   namespace: 'game',
@@ -87,17 +83,38 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // 채널 퇴장
-  async handleDisconnect(socket: Socket) {
+  async handleDisconnect(@ConnectedSocket() socket: Socket) {
+    this.logger.log(`Game 채널 disconnect 호출`);
     let payload;
     try {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
     }
-    await this.userService.disconnectGameSocket(payload?.username);
+    await this.userService.disconnectGameSocket(payload.username);
     this.matchQueue = await this.matchQueue.filter(item => item !== socket);
-
-    // 세팅중에 끊긴 경우 room 삭제?
+    const roomName = await Array.from(socket.rooms)[1];
+    // room에 속해 있는 경우 처리
+    this.logger.log(`과감한 interval 삭제`);
+    if (roomName) {
+      if (this.gameRooms[roomName].timer) { // 게임중
+        //임시 처리
+        clearInterval(this.gameRooms[roomName].timer);
+        this.gameRooms[roomName].sockets[0].leave(roomName);
+        this.gameRooms[roomName].sockets[1].leave(roomName);
+        delete this.gameRooms[roomName];
+      }
+      else { // 세팅중
+        socket.to(roomName).emit('ft_enemy_leave_setting_room', {
+          username: payload.username,
+          access: true,
+        });
+        this.gameRooms[roomName].sockets[0].leave(roomName);
+        this.gameRooms[roomName].sockets[1].leave(roomName);
+        delete this.gameRooms[roomName];
+      }
+    }
+    // 세팅중에 끊긴 경우 세팅 room 삭제?
     // 게임중에 끊긴 경우 들어오면 이어서 하게?
     // 이 부분은 프론트와 상의 후 처리
   }
@@ -111,6 +128,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (err) {
       this.logger.error('fail GameGateway enterMatchQueue', err);
     }
+
+    // 근데 이건 프론트가 막아줘야지 두번 누른다고 두번 넣어주기 있기?
+    // ft_exit_match_queue 를 아예 빼버려?
     if (this.matchQueue.includes(socket)) {
       console.log('이미 있음');
       return { success: false };
@@ -138,10 +158,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // 방 생성 & socket.join
     this.gameRooms[roomName] = {
       sockets: sockets,
-      speed: 0,
-      score: 0,
+      score: 1,
       timer: null,
       element: null,
+      velocityX: this.gameConfig.velocityX,
+      velocityY: this.gameConfig.velocityY,
+      leftPaddleStatus: 0,
+      rightPaddleStatus: 0,
     }
     sockets.forEach(socket => {
       //소켓 인덱스가 0 이면 오너는 true, 1이면 false
@@ -172,22 +195,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     sockets[0].leave(roomName);
     sockets[1].leave(roomName);
     console.log('이제 삭제');
-    // socket.leave(roomName);
-    // remainingSocket.leave(roomName);
     delete this.gameRooms[roomName];
   }
 
   // 게임 설정
   @SubscribeMessage('ft_game_setting')
-  handleGameSettingScore(
+  handleGameSetting(
     @ConnectedSocket() socket: Socket,
     @MessageBody() data: ISettingInformation,) {
     this.logger.log(`Game 채널 ft_game_setting 호출`);
     this.logger.log(`data.score: ${data.score}, data.speed: ${data.speed}, data.roomName: ${data.roomName}`);
     const roomName = data.roomName;
     const sockets = this.gameRooms[roomName].sockets;
-    this.gameRooms[roomName].speed = data.speed;
     this.gameRooms[roomName].score = data.score;
+    this.gameRooms[roomName].velocityX *= data.speed;
+    this.gameRooms[roomName].velocityY *= data.speed;
     const remainingSocket = sockets.find(item => item !== socket);
     // 프론트에서 정의한 remainingSocket 에게 발생시킬 이벤트 함수 호출
     this.logger.log(`remainingSocket.id: ${remainingSocket.id}`);
@@ -223,40 +245,74 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       success: true,
     })
     await this.gameService.createGame(this.gameRooms[roomName].sockets[0].id, this.gameRooms[roomName].sockets[1].id);
-    this.gameRooms[roomName].element = await this.createElement(this.gameRooms[roomName].speed);
+    this.gameRooms[roomName].element = await this.createElement();
     const timer = setInterval(() => {
       this.positionUpdate(roomName);
-    }, 20)
+    }, 40)
     this.gameRooms[roomName].timer = timer;
   }
 
-  // 1972 pong 게임 속성 업데이트
+  // 게임 속성 업데이트
+  // 게임 주요 로직 관리 부분
   async positionUpdate(roomName: string) {
-    //ball의 위치를 업데이트
+    // ball의 위치를 업데이트
     await this.ballUpdate(roomName);
 
-    //Ball 충돌 감지 이벤트 호출
+    // Ball 충돌 감
     await this.ballCollision(roomName);
 
-    // 게임 끝났는지 확인
-    const gameStatus = await this.gameScoreCheck(roomName);
+    // 게임 점수 체크
+    const gamefinished = await this.gameScoreCheck(roomName);
 
-    //ball의 위치를 전송
-    if (gameStatus) {
-      this.nsp.to(roomName).emit('ft_position_update', {
-        GameElement: this.gameRooms[roomName].element
-      })
-    }
-    // await this.sendPosition(roomName);
+    // 객체 위치 정보 전송 일해라 프론트
+    this.nsp.to(roomName).emit('ft_position_update', {
+      GameElement: this.gameRooms[roomName].element
+    })
+
+    // 종료 조건 충족하면 게임 종료 
+    if (gamefinished)
+      this.finishGame(roomName);
   }
 
-  //paddle의 위치를 변경 감지 이벤트
-  // paddleUpdate(roomName: string) {
-  // }
+  //paddle 움직임 버튼 감지
+  @SubscribeMessage('ft_paddle_move')
+  paddleUpdate(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: IPaddleMove,
+  ) {
+    const gameRoom = this.gameRooms[data.roomName];
+    data.isOwner ? gameRoom.leftPaddleStatus = data.paddleStatus : gameRoom.rightPaddleStatus = data.paddleStatus;
+  }
 
   ballUpdate(roomName: string) {
-    this.gameRooms[roomName].element.ball.x += this.gameRooms[roomName].element.ball.velocityX;
-    this.gameRooms[roomName].element.ball.y += this.gameRooms[roomName].element.ball.velocityY;
+    const gameRoom = this.gameRooms[roomName];
+    gameRoom.element.ball.x += gameRoom.velocityX;
+    gameRoom.element.ball.y += gameRoom.velocityY;
+
+    if (gameRoom.leftPaddleStatus === 1) {
+      gameRoom.element.leftPaddle.y -= this.gameConfig.paddleSpeed;
+      if (gameRoom.element.leftPaddle.y < 0) {
+        gameRoom.element.leftPaddle.y = 0;
+      }
+    }
+    else if (gameRoom.leftPaddleStatus === 2) {
+      gameRoom.element.leftPaddle.y += this.gameConfig.paddleSpeed;
+      if (gameRoom.element.leftPaddle.y > 100 - gameRoom.element.leftPaddle.height) {
+        gameRoom.element.leftPaddle.y = 100 - gameRoom.element.leftPaddle.height;
+      }
+    }
+    if (gameRoom.rightPaddleStatus === 1) {
+      gameRoom.element.rightPaddle.y -= this.gameConfig.paddleSpeed;
+      if (gameRoom.element.rightPaddle.y < 0) {
+        gameRoom.element.rightPaddle.y = 0;
+      }
+    }
+    else if (gameRoom.rightPaddleStatus === 2) {
+      gameRoom.element.rightPaddle.y += this.gameConfig.paddleSpeed;
+      if (gameRoom.element.rightPaddle.y > 100 - gameRoom.element.rightPaddle.height) {
+        gameRoom.element.rightPaddle.y = 100 - gameRoom.element.rightPaddle.height;
+      }
+    }
   }
 
   ballCollision(roomName: string) {
@@ -264,8 +320,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const leftPaddle = this.gameRooms[roomName].element.leftPaddle;
     const rightPaddle = this.gameRooms[roomName].element.rightPaddle;
 
+    // 천장과 바닥 충돌 확인
     if (ball.y - ball.radius < 0 || ball.y + ball.radius > 100) {
-      this.gameRooms[roomName].element.ball.velocityY = -this.gameRooms[roomName].element.ball.velocityY;
+      this.gameRooms[roomName].velocityY = -this.gameRooms[roomName].velocityY;
     }
 
     //ball이 paddle에 부딪히면 부딪힌 각도에 따라 방향을 바꿈
@@ -273,46 +330,55 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ball.y + ball.radius >= leftPaddle.y &&
       ball.y - ball.radius <= leftPaddle.y + leftPaddle.height) {
       const deltaY = ball.y - (leftPaddle.y + leftPaddle.height / 2);
-      this.gameRooms[roomName].element.ball.velocityX = -this.gameRooms[roomName].element.ball.velocityX;
-      this.gameRooms[roomName].element.ball.velocityY = deltaY * 0.1;  // 0.1은 부드러운 각도 조절 나중에 수정 필요
+      this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
+      this.gameRooms[roomName].velocityY = deltaY * 0.1;  // 0.1은 부드러운 각도 조절 나중에 수정 필요
     }
     if (ball.x + ball.radius > rightPaddle.x &&
       ball.y + ball.radius >= rightPaddle.y &&
       ball.y - ball.radius <= rightPaddle.y + rightPaddle.height) {
       const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
-      this.gameRooms[roomName].element.ball.velocityX = -this.gameRooms[roomName].element.ball.velocityX;
-      this.gameRooms[roomName].element.ball.velocityY = deltaY * 0.1;
+      this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
+      this.gameRooms[roomName].velocityY = deltaY * 0.1;
     }
+  }
+
+  // 스코어 관리 및 종료 조건 확인 반환
+  gameScoreCheck(roomName: string): boolean {
+    const gameRoom = this.gameRooms[roomName];
+    let gamefinished = false;
 
     //ball이 paddle을 넘어가면 score를 올림
-    if (this.gameRooms[roomName].element.ball.x < 0) {
-      this.gameRooms[roomName].element.score.right += 1;
-      this.resetBallPosition(roomName);
+    if (gameRoom.element.ball.x + gameRoom.element.ball.radius < gameRoom.element.leftPaddle.x) {
+      gameRoom.element.score.right += 1;
+      this.resetBallPosition(roomName, -1);
     }
-    if (this.gameRooms[roomName].element.ball.x > 100) {
-      this.gameRooms[roomName].element.score.left += 1;
-      this.resetBallPosition(roomName);
+    if (gameRoom.element.ball.x - gameRoom.element.ball.radius > gameRoom.element.rightPaddle.x + gameRoom.element.rightPaddle.width) {
+      gameRoom.element.score.left += 1;
+      this.resetBallPosition(roomName, 1);
     }
+
+    // score가 설정값과 일치하면 게임 종료
+    if (gameRoom.element.score.left === gameRoom.score || gameRoom.element.score.right === gameRoom.score) {
+      return true;
+    }
+    return gamefinished;
   }
 
   // ball 위치 초기화
-  resetBallPosition(roomName: string) {
-    this.gameRooms[roomName].element.ball.x = 50;
-    this.gameRooms[roomName].element.ball.y = 50;
-    this.gameRooms[roomName].element.ball.velocityX = 2;
-    this.gameRooms[roomName].element.ball.velocityY = 1;
+  resetBallPosition(roomName: string, direct: number) {
+    this.gameRooms[roomName].element.ball.x = 45;
+    this.gameRooms[roomName].element.ball.y = 45;
+    this.gameRooms[roomName].velocityX = this.gameConfig.velocityX * direct;
+    this.gameRooms[roomName].velocityY = this.gameConfig.velocityY;
   }
 
-  // 게임이 끝났는지 확인
-  gameScoreCheck(roomName: string) {
+  async finishGame(roomName: string) {
     const gameRoom = this.gameRooms[roomName];
-    if (gameRoom.element.score.left === gameRoom.score || gameRoom.element.score.right === gameRoom.score) {
-      clearInterval(this.gameRooms[roomName].timer);
-      this.gameRooms[roomName].timer = null;
-      this.gameRooms[roomName].element = null;
-      return false;
-    }
-    return true;
+    clearInterval(gameRoom.timer);
+    const winner = gameRoom.element.score.left === gameRoom.score ? gameRoom.sockets[0].id : gameRoom.sockets[1].id;
+    const loser = gameRoom.element.score.left === gameRoom.score ? gameRoom.sockets[1].id : gameRoom.sockets[0].id;
+    await this.gameService.finishGame(winner, loser);
+    this.nsp.to(roomName).emit('finishGame', { msg: '게임 끝났어요' });
   }
 
   // socket으로 부터 token을 받아서 payload 추출
@@ -324,24 +390,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
 
-  createElement(speed: number): GameElement {
+  createElement(): GameElement {
     return {
       ball: {
         x: 45,
         y: 45,
         radius: this.gameConfig.radius,
-        velocityX: this.gameConfig.velocityX * speed,
-        velocityY: this.gameConfig.velocityY * speed,
       },
       leftPaddle: {
-        x: 10,
-        y: 30,
+        x: 0,
+        y: 40,
         width: this.gameConfig.paddleWidth,
         height: this.gameConfig.paddleHeight,
       },
       rightPaddle: {
-        x: 80,
-        y: 30,
+        x: 100 - this.gameConfig.paddleWidth,
+        y: 40,
         width: this.gameConfig.paddleWidth,
         height: this.gameConfig.paddleHeight,
       },
