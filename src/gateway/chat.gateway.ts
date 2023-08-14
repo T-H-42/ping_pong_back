@@ -27,7 +27,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.5:3000'],
+    origin: ['http://10.13.2.7:3000'],
   },
 })
 export class ChatGateway
@@ -150,9 +150,19 @@ export class ChatGateway
     } catch (error) {
       console.log('chatroom create 에러');
     }
+    console.log("=======");
+    console.log(payload);
+    console.log("====roomname===");
+    
+    console.log("=======");
+
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
     );
+    console.log("=======");
+    console.log(requestUser);
+    console.log("=======");
+
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(_Data["roomName"]); // 방이 있는지 DB에 유효성 체크
     if (isExist === false) {
@@ -161,8 +171,8 @@ export class ChatGateway
       // await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,_Data["password"], _Data["limitUser"]);
       await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,hashedPassword, _Data["limitUser"]);
       ////////////////////
-    }
-    else{
+    } else {
+      console.log("testsetst");
       return { success: false, payload: `${_Data["roomName"]} 방이 이미 존재합니다.` };
     }
     

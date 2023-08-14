@@ -18,6 +18,7 @@ export class UserRepository extends Repository<User> {
     console.log('email = ', email);
     const user = this.create({
       username,
+      intra_id: username,
       email,
       status: 1,
       two_factor_authentication_status: false,
@@ -37,5 +38,9 @@ export class UserRepository extends Repository<User> {
 
   async updateProfileImage(username: string, imageName: string) {
     return await this.update({ username: username }, { image_url: imageName });
+  }
+
+  async updateUsername(nickname: string, intraID: string) {
+    return await this.update({ intra_id: intraID }, { username: nickname });
   }
 }
