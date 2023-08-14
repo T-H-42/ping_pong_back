@@ -12,7 +12,7 @@ export class Chat_Room_Msg extends BaseEntity {
 	user_id : number;
 
 	@Column()
-	msg : string;
+	message : string;
 	
 	@Column()
 	time : string;

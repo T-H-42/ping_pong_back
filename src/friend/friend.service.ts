@@ -22,6 +22,7 @@ export class FriendService {
   async findFriendList(user: User): Promise<User[]> {
     const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
     where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
+
     const result = await this.friendRepository.query(query);
     return result;
     }
