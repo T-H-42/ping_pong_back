@@ -15,7 +15,6 @@ import * as config from 'config';
 import { UserService } from 'src/user/user.service';
 import { Chat_Room } from 'src/entity/chat_room.entity';
 import { ChatRoomService } from 'src/chat_room/chat_room.service';
-import { Server } from 'http';
 
 interface MessagePayload {
   roomName: string;
@@ -157,7 +156,11 @@ export class ChatGateway
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(_Data["roomName"]); // 방이 있는지 DB에 유효성 체크
     if (isExist === false) {
-      await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,_Data["password"], _Data["limitUser"]);
+      ////////////////////
+      const hashedPassword = await this.chatRoomService.hashPassword(_Data["password"]);
+      // await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,_Data["password"], _Data["limitUser"]);
+      await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,hashedPassword, _Data["limitUser"]);
+      ////////////////////
     }
     else{
       return { success: false, payload: `${_Data["roomName"]} 방이 이미 존재합니다.` };
@@ -188,6 +191,7 @@ export class ChatGateway
     console.log(_Data);
     console.log("=======in join room======");
 
+    
     if (await this.chatRoomService.isValidPassword(_Data["roomName"], _Data["password"]) === false) ///create-room 시 비어있는 password와 양식이 같도록!
       return { success: false }; ///password err _Data["roomName"]
     this.logger.log('채팅방 입장하기 호출: ', socket.id);
@@ -439,32 +443,55 @@ export class ChatGateway
       username: `${payload.username}`,
       message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
     };
-    
-    
-    /*
-    방식1. ft_message 이벤트로 join-room, leave-room 처럼 
-    ft_getUserListInRoom을 쏴준다면? 아래에서 emit에 대한 로직이 F/B 모두 추가가 되어야 할 것. 이벤트 발생때마다 모달을 띄워버리면,
-    "채팅방 정보" 버튼 클릭안한 사용자에게도 띄워버리는건지?? 이게 안되면 그냥 Message안에서 처리하는 방안도 있음.
-    */
-
-
-    //데이터 값 바꾸고, 상대방의 소켓아이디에 쏴주고, 요구자는 return.
   }
-
-
-  
 
   @SubscribeMessage('ft_getUserListInRoom') //front위해 스스스스로로가  just,admin,Owner인지에 대한 값을 넣어줄지 생각필요
   async getUserListInRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
   )
-  { //리스트를 받아오는 로직인데, 제 3자가 이벤트를 발생시키면?? - emit으로 관리자인지, mute인지, 등등 이벤트 명을 주는 것을 하는건 어떤지?
-    return (await this.chatRoomService.getUserListInChatRoom(roomName));
+  {
+    /*
+    ASIS
+    return [
+      {},
+      {},
+      '''
+      {}
+    ]
+
+    TOBE
+    return {
+      userList:
+        [
+          {
+            username:nhwang,
+            right:3
+          },
+          {
+            username:daskim,
+            right:3
+          },{}'''{}
+        ],
+      userRight:3
+    }
+    */
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const user = await this.userService.getUserByUserName(payload.username);
+    const userId = user.id;
+    const userRight = await this.chatRoomService.getUserRight(userId,roomName);
+
+    // return (await this.chatRoomService.getUserListInChatRoom(roomName));
+    const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
+    return ({userList, userRight:`${userRight}`});
   }
-
-
-
 
 
 

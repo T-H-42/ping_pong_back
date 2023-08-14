@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ChatRoomRepository } from './chat_room.repository';
+import * as bcrypy from 'bcrypt';
 
 @Injectable()
 export class ChatRoomService {
@@ -142,9 +143,6 @@ export class ChatRoomService {
     {
         if (roomName === undefined)
             return true;
-        console.log("======?=======");
-        console.log(roomName);
-        console.log("======?=======");
         const query = `select "curr_user" from "chat_room" where "index" = '${roomName}' and "curr_user" > 0;`;
         const ret = await this.chatRoomRepository.query(query);
         console.log("======af query=======");
@@ -160,13 +158,28 @@ export class ChatRoomService {
         await this.deleteBanUserChatRoom(roomName);
         await this.deleteBlockChatRoom(roomName);
         await this.deleteChatRoom(roomName);
+        const dmCheck = await this.isDm(roomName); //not으로!
+        console.log("------------dm check------------");
+        console.log(dmCheck);
+        console.log("------------dm check------------");
+        if (dmCheck.length===0) //dm이 아닌 경우
+        {
+            console.log("------------dm check scope!!!!?????------------");
+            await this.deleteChatLog(roomName);
+        }
         ///dm이 아닐 경우! message delete!
     }
 
-    async deleteChatMessage(roomName:string)
+    async deleteChatLog(roomName : string)
     {
-        // const query = `delete from "chat_room_msg" where `
-        // 
+        const query = `delete from "chat_room_msg" where "index" = '${roomName}';`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    async isDm(roomName : string)
+    {
+        const query = `select "index" from "chat_room" where "room_stat"=3 and "index" = '${roomName}';`;
+        return (await this.chatRoomRepository.query(query));
     }
 
     async deleteChatUserRoom(roomName : string)
@@ -228,16 +241,20 @@ export class ChatRoomService {
     {
         const query = `select "password" from "chat_room" where index='${roomName}';`;
         const obj = await this.chatRoomRepository.query(query);
-        if (obj[0].password === password) ///복호화 할 필요가 없음!
+        
+        if (await bcrypy.compare(password, obj[0].password))
             return true;
         return false;
+        // if (obj[0].password === password) ///복호화 할 필요가 없음!
+        //     return true;
+        // return false;
     }
 
 
     async isMuted(roomName : string, userId : number){
         //상황에 따라 이벤트 쏠수 있도록? -> ft_message에서 처리하는 방식이라면 여기서 로직 추가
         
-        const query = `select "mute_end_time" from "chat_user" where "index" = '비번방~' and "user_id" = 10 and "mute_end_time"::timestamp > NOW();`;
+        const query = `select "mute_end_time" from "chat_user" where "index" = '${roomName}' and "user_id" = ${userId} and "mute_end_time"::timestamp > NOW();`;
         const obj = await this.chatRoomRepository.query(query);
         if (obj.length===0)
             return false;
@@ -254,6 +271,20 @@ export class ChatRoomService {
     {
         const query = `update "chat_user" set "right" = 1 where "index" = '${roomName}' and "user_id" = ${targetUserId}`;
         await this.chatRoomRepository.query(query);
+    }
+
+    async getUserRight(userId : number,roomName : string)
+    {
+        const query = `select "right" from "chat_user" where "index"='${roomName}' and "user_id" = ${userId}`;
+        const ret = await this.chatRoomRepository.query(query);
+        return (ret[0].right);
+    }
+
+    async hashPassword(password : string)
+    {
+        const salt = await bcrypy.genSalt();
+        const hashedPassword = await bcrypy.hash(password, salt);
+        return hashedPassword;
     }
 
     /*
