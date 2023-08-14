@@ -14,6 +14,7 @@ import {
   Header,
   Headers,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login.dto';
@@ -27,6 +28,7 @@ import { HttpService } from '@nestjs/axios'; //HttpModule
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { brotliCompress } from 'zlib';
 
 ///!!!!RESTful -> no verb,method use noun.
 
@@ -71,13 +73,25 @@ export class UserController {
     return await this.userService.uploadProfileImage(user.username, image);
   }
 
+  @Post('/nickname')
+  @UseGuards(AuthGuard())
+  async changeNickname(
+    @GetUser() user: User,
+    @Body() body: { nickname: string },
+    @Res() res: Response,
+  ) {
+    if (!body?.nickname) {
+      throw new BadRequestException('닉네임을 입력해주세요');
+    }
+    return await this.userService.changeNickname(user, body?.nickname, res);
+  }
+
   @Get('/token_validation')
-  async tokenValidation(@Headers('authorization') token : string)
-  {
+  async tokenValidation(@Headers('authorization') token: string) {
     const jwtToken = token.split(' ')[1];
     //const token = body.token;
     console.log(jwtToken);
-    
+
     return await this.userService.tokenValidation(token);
-  }  
+  }
 }

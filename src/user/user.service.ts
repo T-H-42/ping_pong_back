@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -17,7 +18,7 @@ import * as crypto from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CertificateDto } from './dto/certificate.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { HttpService } from '@nestjs/axios';
 import * as config from 'config';
 import { Any } from 'typeorm';
@@ -25,7 +26,7 @@ import { Socket } from 'dgram';
 import { createReadStream } from 'fs';
 import path from 'path';
 import { JwtStrategy } from './jwt.strategy';
-import * as jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class UserService {
@@ -36,15 +37,12 @@ export class UserService {
     private readonly httpService: HttpService,
   ) {}
 
-
-  async tokenValidation(token: string)
-  {
+  async tokenValidation(token: string) {
     try {
       await jwt.verify(token, 'secret1234');
       return true;
-    } catch (error) 
-    {
-     throw new UnauthorizedException('Invalid token');
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
     }
   }
 
@@ -99,7 +97,7 @@ export class UserService {
 
     let user = await this.userRepository.findOne({
       where: {
-        username: response.data.login,
+        intra_id: response.data.login,
       },
     });
     if (!user) {
@@ -126,7 +124,7 @@ export class UserService {
       const _res = await this.setToken(_user, res);
       user = await this.userRepository.findOne({
         where: {
-          username: response.data.login,
+          intra_id: response.data.login,
         },
       });
     }
@@ -145,7 +143,7 @@ export class UserService {
     console.log('===========');
     console.log(accessToken);
     console.log('===========');
-    
+
     if (user.two_factor_authentication_status === true) {
       // await this.sendMail(loginDto);
       console.log('user exist');
@@ -342,5 +340,64 @@ export class UserService {
     );
     if (!imageUpdate.affected) throw new UnauthorizedException();
     return 'succeed';
+  }
+
+  async changeNickname(user:User, nickname: string, res: Response) {
+    if (user.intra_id !== nickname) {
+      const oath = config.get('oauth');
+      const token = await axios
+        .post('https://api.intra.42.fr/oauth/token', {
+          grant_type: 'client_credentials',
+          client_id: oath.oauth_id,
+          client_secret: oath.oauth_secret,
+        })
+        .then((res) => {
+          return res.data.access_token;
+        });
+      const res = await axios
+        .get(`https://api.intra.42.fr/v2/users/${nickname}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        .then((res) => {
+          return '닉네임은 다른 사람의 intraID로 생성 불가능합니다.';
+        })
+        .catch((error) => {
+          return '';
+        });
+      if (res) {
+        throw new BadRequestException(
+          '닉네임은 다른 사람의 intraID로 생성 불가능합니다.',
+        );
+      }
+    }
+    let nicknameUpdate;
+    try{
+        nicknameUpdate = await this.userRepository.updateUsername(
+        nickname,
+        user.intra_id,
+        )
+      }
+      catch(error) { // 중복된 닉네임일 경우 해당 에러 객체로 오류 처리
+        if (error.code === '23505')
+          throw new BadRequestException('이미 있는 닉네임 입니다.');
+      };
+      if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
+        throw new InternalServerErrorException('Something went wrong!!!');
+      }
+    user.username = nickname;
+    console.log("user!!!!!!!!!!");
+    console.log(user);
+    console.log("user!!!!!!!!!!");
+
+    const _res = await this.setToken(user, res);
+    console.log("user!!!!!!!!!!");
+    console.log(_res);
+    console.log("user!!!!!!!!!!");
+
+    return (_res.send());
+    
+    // return 'succeed';
   }
 }

@@ -5,7 +5,7 @@ export class Chat_Block extends BaseEntity {
     @PrimaryGeneratedColumn()
     id : number;
 
-    @Column()
+    @Column({nullable:true})
     chat_room_id : number;
 
     @Column()

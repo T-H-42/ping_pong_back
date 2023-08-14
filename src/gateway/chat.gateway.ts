@@ -28,7 +28,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.5:3000'],
+    origin: ['http://10.13.2.7:3000'],
   },
 })
 export class ChatGateway
@@ -139,15 +139,25 @@ export class ChatGateway
     } catch (error) {
       console.log('chatroom create 에러');
     }
+    console.log("=======");
+    console.log(payload);
+    console.log("====roomname===");
+    console.log(roomName);
+    console.log("=======");
+
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
     );
+    console.log("=======");
+    console.log(requestUser);
+    console.log("=======");
+
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
     if (isExist !== true) {
       await this.chatRoomService.createDmRoom(userId, roomName);
-    }
-    else{
+    } else {
+      console.log("testsetst");
       return { success: false, payload: `${roomName} 방이 이미 존재합니다.` };
     }
 
