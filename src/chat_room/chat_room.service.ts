@@ -287,6 +287,43 @@ export class ChatRoomService {
         return hashedPassword;
     }
 
+
+    async setBlock(roomName : string, targetUserId : number, userId : number)
+    {
+        const isAlreadyBlocked = await this.chatRoomRepository.query(`select * from "chat_block" where "user_id" = ${userId} and "index"='${roomName}' and "blocked_user_id"=${targetUserId};`);
+        if (isAlreadyBlocked.length !== 0 )//이미 block인 경우
+            return false;
+        const query = `insert into "chat_block"("user_id","blocked_user_id","index") values(${userId}, ${targetUserId}, '${roomName}');`;
+        await this.chatRoomRepository.query(query);
+        return true;
+    }
+
+    async setBan(roomName : string, targetUserId : number)
+    {
+        const isAlreadyBaned = await this.chatRoomRepository.query(`select * from "chat_ban" where "ban_user_id" = ${targetUserId} and "index"='${roomName}';`);
+        if (isAlreadyBaned.length !== 0 )//이미 block인 경우
+            return false;
+        const query = `insert into "chat_ban"("ban_user_id","index") values(${targetUserId}, '${roomName}');`;
+        await this.chatRoomRepository.query(query);
+        return true;
+    }
+
+    async setMute(roomName : string, targetUserId: number)
+    {
+        if (await this.isMuted(roomName,targetUserId)===true)
+            return false;
+        // const query = `update "chat_user" set "mute_end_time" = "NOW()+" , ;`;
+        //update "chat_user" set "mute_end_time" = NOW()+(10 || 'minutes')::interval where "user_id" = 12; //10분 증가해서 저장!
+        //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
+    }
+
+    async deleteMute(roomName : string)
+    {
+        //해제된 녀석들의 chatSocket 던져주기
+        const query = `select ;`;
+    }
+    
+    
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
     async checkReqUserRight(requestUserId : number, roomName : string) admin인지 오너인지 확인해줘야 함. -> admin,owner면 그에 맞는 버튼은 그 뒤의 모달에서 보여줘야 할 것.

@@ -354,9 +354,7 @@ export class ChatGateway
       let friends = [];
       friends.push(friend[0].chat_sockid);
       // roomName, user_id, msg, time으로 저장
-      console.log('========???여기까지???2222');
       await this.chatRoomService.saveMessage(roomName, userId, message);
-      console.log('========???여기까지???3333');
 
       await socket.broadcast.to(friends).emit('ft_dm', {
         username: `${payload.username}`,
@@ -445,12 +443,112 @@ export class ChatGateway
     };
   }
 
+  
+  @SubscribeMessage('ft_ban')
+  async banUser(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, //roomName, 상대방 targetUser
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const targetUser = await this.userService.getUserByUserName(
+      _Data["targetUser"],
+      );
+      const targetUserId = targetUser.id;
+      
+    const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
+    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    
+    const banedRet = await this.chatRoomService.setBan(_Data["roomName"], targetUserId);
+    if (banedRet===false)
+      return {
+        success : false ///이미 blocked인 경우
+      };
+    socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
+    });
+    return {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
+    };
+  }
+
+
+  @SubscribeMessage('ft_block')
+  async blockUser(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, //roomName, 상대방 targetUser
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const targetUser = await this.userService.getUserByUserName(
+      _Data["targetUser"],
+      );
+      const targetUserId = targetUser.id;
+      
+    const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
+    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    );
+    const userId = requestUser.id;
+    const blockedRet = await this.chatRoomService.setBlock(_Data["roomName"], targetUserId, userId);
+    if (blockedRet===false)
+      return {
+        success : false ///이미 blocked인 경우
+      };
+    socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}`,
+      message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
+    });
+    return {
+      username: `${payload.username}`,
+      message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
+    };
+  }
+
+
+  
+
   @SubscribeMessage('ft_getUserListInRoom') //front위해 스스스스로로가  just,admin,Owner인지에 대한 값을 넣어줄지 생각필요
   async getUserListInRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,
   )
   {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const user = await this.userService.getUserByUserName(payload.username);
+    const userId = user.id;
+    const userRight = await this.chatRoomService.getUserRight(userId,roomName);
+
+    // return (await this.chatRoomService.getUserListInChatRoom(roomName));
+    const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
+    return ({userList, userRight:`${userRight}`});
     /*
     ASIS
     return [
@@ -476,6 +574,14 @@ export class ChatGateway
       userRight:3
     }
     */
+  }
+  //*front에서 ft_mute를 setInterval()로 쏴주시면 됩니다. 혹은 다른 이벤트로 해서 줘도 됩니다.
+  @SubscribeMessage('ft_mute')  
+  async muteUser(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName, 상대방 targetUser, Mute시간 입력하는 방법으로 갈거면 시간 필요합니다. 디폴트2분 이런거면 안줘도 됌.
+  )
+  {
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -484,14 +590,28 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return error;
     }
-    const user = await this.userService.getUserByUserName(payload.username);
-    const userId = user.id;
-    const userRight = await this.chatRoomService.getUserRight(userId,roomName);
-
-    // return (await this.chatRoomService.getUserListInChatRoom(roomName));
-    const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
-    return ({userList, userRight:`${userRight}`});
+    const targetUser = await this.userService.getUserByUserName(
+      _Data["targetUser"],
+      );
+      const targetUserId = targetUser.id;
+      
+    const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
+    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    //await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
+    //roomName에 emit, 자신에 return
   }
+
+  /*
+  @SubscribeMessage('ft_mute_check')  
+  async ft_mute_check(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName만 주셔도 됩니다.
+  )
+  {
+    now()보다 시간이 적으면, delete하고 해당 유저들 전체에게 mute해제되었음을 ft_message로 주면 될듯.    
+  }
+  */
 
 
 
