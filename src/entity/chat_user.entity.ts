@@ -24,5 +24,4 @@ export class Chat_User extends BaseEntity
 
     @Column({nullable: true})
     right : number;
-
 }

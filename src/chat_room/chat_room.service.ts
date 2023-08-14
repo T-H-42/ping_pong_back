@@ -226,12 +226,12 @@ export class ChatRoomService {
         //select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10;
         //ㄴ> 날 블록한 유저 id -> as A
         // select "user"."socketid" from (select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10) as "A" left join "user" on "user"."id" = "A"."user_id";
-        const query = `select "user"."socketid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const query = `select "user"."chat_sockid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
         const ret = await this.chatRoomRepository.query(query);
         let _return = [];
         ret.map((i) => {
-            if (i.socketid !== null)
-                _return.push(i.socketid);
+            if (i.chat_sockid !== null)
+                _return.push(i.chat_sockid);//socketid
         });
 
         return _return;
@@ -313,14 +313,25 @@ export class ChatRoomService {
         if (await this.isMuted(roomName,targetUserId)===true)
             return false;
         // const query = `update "chat_user" set "mute_end_time" = "NOW()+" , ;`;
-        //update "chat_user" set "mute_end_time" = NOW()+(10 || 'minutes')::interval where "user_id" = 12; //10분 증가해서 저장!
+        const query = `update "chat_user" set "mute_end_time" = NOW()+(2 || 'minutes')::interval where "user_id" = ${targetUserId}`; //10분 증가해서 저장!
+        await this.chatRoomRepository.query(query);
         //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
+        
     }
 
     async deleteMute(roomName : string)
     {
         //해제된 녀석들의 chatSocket 던져주기
-        const query = `select ;`;
+        /*
+        select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp;
+        ㄴ-> as "A"
+
+        
+        `select "user"."username" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as 
+        "A" left join "user" on "A"."user_id" = "user"."id"`;
+        */
+        const query = `select "user"."username" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+        return (await this.chatRoomRepository.query(query));
     }
     
     

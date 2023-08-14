@@ -107,8 +107,8 @@ export class ChatGateway
     );
     const userId = requestUser.id;
     //Muted이면 즉시 리턴만해서 처리 -> 아니면 관련 데이터 모두 삭제.
-    //if (await this.~~.isMuted(roomName, userId))
-    //  return {fail값}
+    if (await this.chatRoomService.isMuted(roomName, userId))
+      return {success : false};
     await this.chatRoomService.saveMessage(roomName, userId, message);
     const userBlockedMeList =  await this.chatRoomService.findWhoBlockedMe(userId,roomName);//block을 제외한 유저에게 보내기
     console.log("-----------in ft_message find user Who Blocked Me -----------");
@@ -558,7 +558,7 @@ export class ChatGateway
 
     // return (await this.chatRoomService.getUserListInChatRoom(roomName));
     const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
-    return ({userList, userRight:`${userRight}`});
+    return ({userList, userRight:userRight});
     /*
     ASIS
     return [
@@ -608,20 +608,35 @@ export class ChatGateway
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
-    //await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
+    await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
+    socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
+    });
+    return {
+      username: `${payload.username}`,
+      message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
+    };
     //roomName에 emit, 자신에 return
   }
 
-  /*
+  
   @SubscribeMessage('ft_mute_check')  
   async ft_mute_check(
     @ConnectedSocket() socket: Socket,
     @MessageBody() _Data: string, ////roomName만 주셔도 됩니다.
   )
   {
-    now()보다 시간이 적으면, delete하고 해당 유저들 전체에게 mute해제되었음을 ft_message로 주면 될듯.    
+    console.log("test doodooo");
+    const muteUnlockList = await this.chatRoomService.deleteMute(_Data["roomName"]); //mute 해제된 username들의 리스트 던지기.
+    
+    // [
+    //    {username : nhwang},
+    //    {username : test1},....
+    // ]
+    // now()보다 시간이 적으면, delete하고 해당 유저들 전체에게 mute해제되었음을 ft_message로 주면 될듯.
   }
-  */
+  
 
 
 
