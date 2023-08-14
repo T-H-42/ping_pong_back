@@ -17,7 +17,7 @@ import { FriendService } from 'src/friend/friend.service';
 @WebSocketGateway({
   namespace: 'ping_pong',
   cors: {
-    origin: ['http://localhost:3000'],
+    origin: ['http://10.13.2.7:3000'],
   },
 })
 export class PingPongGateway

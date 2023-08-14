@@ -97,7 +97,7 @@ export class UserService {
 
     let user = await this.userRepository.findOne({
       where: {
-        username: response.data.login,
+        intra_id: response.data.login,
       },
     });
     if (!user) {
@@ -124,7 +124,7 @@ export class UserService {
       const _res = await this.setToken(_user, res);
       user = await this.userRepository.findOne({
         where: {
-          username: response.data.login,
+          intra_id: response.data.login,
         },
       });
     }
@@ -342,8 +342,8 @@ export class UserService {
     return 'succeed';
   }
 
-  async changeNickname(user: User, nickname: string) {
-    if (user.username !== nickname) {
+  async changeNickname(user:User, nickname: string, res: Response) {
+    if (user.intra_id !== nickname) {
       const oath = config.get('oauth');
       const token = await axios
         .post('https://api.intra.42.fr/oauth/token', {
@@ -372,13 +372,32 @@ export class UserService {
         );
       }
     }
-    const nicknameUpdate = await this.userRepository.updateNickname(
-      user.username,
-      nickname,
-    );
-    if (!nicknameUpdate.affected) {
-      throw new InternalServerErrorException('Something went wrong');
-    }
-    return 'succeed';
+    let nicknameUpdate;
+    try{
+        nicknameUpdate = await this.userRepository.updateUsername(
+        nickname,
+        user.intra_id,
+        )
+      }
+      catch(error) { // 중복된 닉네임일 경우 해당 에러 객체로 오류 처리
+        if (error.code === '23505')
+          throw new BadRequestException('이미 있는 닉네임 입니다.');
+      };
+      if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
+        throw new InternalServerErrorException('Something went wrong!!!');
+      }
+    user.username = nickname;
+    console.log("user!!!!!!!!!!");
+    console.log(user);
+    console.log("user!!!!!!!!!!");
+
+    const _res = await this.setToken(user, res);
+    console.log("user!!!!!!!!!!");
+    console.log(_res);
+    console.log("user!!!!!!!!!!");
+
+    return (_res.send());
+    
+    // return 'succeed';
   }
 }

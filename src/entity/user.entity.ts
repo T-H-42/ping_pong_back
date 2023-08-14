@@ -17,7 +17,7 @@ export class User extends BaseEntity {
   username: string;
 
   @Column({ nullable: true })
-  nickname: string;
+  intra_id: string;
 
   @Column({ nullable: true })
   socketid: string; //sockid_pingpong
