@@ -11,7 +11,7 @@ export class GameService {
   async createGame(socket1: string, socket2: string) {
     const user1 = await User.findOne({ where: { game_sockid: socket1 } });
     const user2 = await User.findOne({ where: { game_sockid: socket2 } });
-    if (user1 === undefined || user2 === undefined) {
+    if (!user1 || !user2) {
       console.log('user 정보 없음');
       return;
     }

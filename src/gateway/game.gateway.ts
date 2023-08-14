@@ -12,7 +12,8 @@ import e from 'express';
 // 게임 설정 인터페이스
 interface GameInformation {
   sockets: Socket[];
-  score: number;
+  maxScore: number;
+  speed: number;
   timer: NodeJS.Timeout | null;
   element: GameElement | null;
   velocityX: number
@@ -91,14 +92,19 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
     }
+    if (!payload) {
+      return;
+    }
     await this.userService.disconnectGameSocket(payload.username);
     this.matchQueue = await this.matchQueue.filter(item => item !== socket);
+    // 소켓이 속해 있는 roomName을 가져옴
     const roomName = await Array.from(socket.rooms)[1];
+    this.logger.log(`roomName: ${roomName}`);
     // room에 속해 있는 경우 처리
-    this.logger.log(`과감한 interval 삭제`);
     if (roomName) {
       if (this.gameRooms[roomName].timer) { // 게임중
         //임시 처리
+        this.logger.log(`과감한 interval 삭제`);
         clearInterval(this.gameRooms[roomName].timer);
         this.gameRooms[roomName].sockets[0].leave(roomName);
         this.gameRooms[roomName].sockets[1].leave(roomName);
@@ -151,14 +157,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { success: true };
   }
 
-  // room 생성
+  // 게임룽 생성 및 게임 속성들 초기화
   async createGameRoom(sockets: Socket[]) {
     this.logger.log(`Game 채널 createGameRoom 호출`);
     const roomName = await uuidv4();
     // 방 생성 & socket.join
     this.gameRooms[roomName] = {
       sockets: sockets,
-      score: 1,
+      maxScore: 500,
+      speed: 1,
       timer: null,
       element: null,
       velocityX: this.gameConfig.velocityX,
@@ -207,7 +214,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`data.score: ${data.score}, data.speed: ${data.speed}, data.roomName: ${data.roomName}`);
     const roomName = data.roomName;
     const sockets = this.gameRooms[roomName].sockets;
-    this.gameRooms[roomName].score = data.score;
+    this.gameRooms[roomName].maxScore = data.score;
+    this.gameRooms[roomName].speed = data.speed;
     this.gameRooms[roomName].velocityX *= data.speed;
     this.gameRooms[roomName].velocityY *= data.speed;
     const remainingSocket = sockets.find(item => item !== socket);
@@ -248,30 +256,32 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.gameRooms[roomName].element = await this.createElement();
     const timer = setInterval(() => {
       this.positionUpdate(roomName);
-    }, 40)
+    }, 1000 / 60)
     this.gameRooms[roomName].timer = timer;
   }
+
 
   // 게임 속성 업데이트
   // 게임 주요 로직 관리 부분
   async positionUpdate(roomName: string) {
     // ball의 위치를 업데이트
-    await this.ballUpdate(roomName);
+    this.logger.log(`Game 채널 positionUpdate 호출`);
+    const gameRoom = this.gameRooms[roomName];
 
-    // Ball 충돌 감
-    await this.ballCollision(roomName);
+    this.ballUpdate(gameRoom);
+    this.ballCollision(gameRoom);
 
     // 게임 점수 체크
-    const gamefinished = await this.gameScoreCheck(roomName);
+    const gamefinished = this.gameScoreCheck(gameRoom);
 
     // 객체 위치 정보 전송 일해라 프론트
     this.nsp.to(roomName).emit('ft_position_update', {
-      GameElement: this.gameRooms[roomName].element
+      GameElement: gameRoom.element
     })
 
     // 종료 조건 충족하면 게임 종료 
     if (gamefinished)
-      this.finishGame(roomName);
+      this.finishGame(gameRoom, roomName);
   }
 
   //paddle 움직임 버튼 감지
@@ -284,45 +294,36 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     data.isOwner ? gameRoom.leftPaddleStatus = data.paddleStatus : gameRoom.rightPaddleStatus = data.paddleStatus;
   }
 
-  ballUpdate(roomName: string) {
-    const gameRoom = this.gameRooms[roomName];
-    gameRoom.element.ball.x += gameRoom.velocityX;
-    gameRoom.element.ball.y += gameRoom.velocityY;
+  ballUpdate(gameRoom: GameInformation) {
+    const { element, velocityX, velocityY, leftPaddleStatus, rightPaddleStatus } = gameRoom;
+    const { ball } = element;
+  
+    gameRoom.velocityX += 0.002;
+    gameRoom.velocityY += 0.001;
+    ball.x += gameRoom.velocityX;
+    ball.y += gameRoom.velocityY;
 
-    if (gameRoom.leftPaddleStatus === 1) {
-      gameRoom.element.leftPaddle.y -= this.gameConfig.paddleSpeed;
-      if (gameRoom.element.leftPaddle.y < 0) {
-        gameRoom.element.leftPaddle.y = 0;
-      }
+    this.updatePadlePosition(leftPaddleStatus, element.leftPaddle);
+    this.updatePadlePosition(rightPaddleStatus, element.rightPaddle);
+  }
+
+  updatePadlePosition(status: number, paddle: Paddle) {
+    const speed = this.gameConfig.paddleSpeed;
+    if (status === 1 && paddle.y > 0) {
+      paddle.y -= speed;
     }
-    else if (gameRoom.leftPaddleStatus === 2) {
-      gameRoom.element.leftPaddle.y += this.gameConfig.paddleSpeed;
-      if (gameRoom.element.leftPaddle.y > 100 - gameRoom.element.leftPaddle.height) {
-        gameRoom.element.leftPaddle.y = 100 - gameRoom.element.leftPaddle.height;
-      }
-    }
-    if (gameRoom.rightPaddleStatus === 1) {
-      gameRoom.element.rightPaddle.y -= this.gameConfig.paddleSpeed;
-      if (gameRoom.element.rightPaddle.y < 0) {
-        gameRoom.element.rightPaddle.y = 0;
-      }
-    }
-    else if (gameRoom.rightPaddleStatus === 2) {
-      gameRoom.element.rightPaddle.y += this.gameConfig.paddleSpeed;
-      if (gameRoom.element.rightPaddle.y > 100 - gameRoom.element.rightPaddle.height) {
-        gameRoom.element.rightPaddle.y = 100 - gameRoom.element.rightPaddle.height;
-      }
+    else if (status === 2 && paddle.y < 100 - paddle.height) {
+      paddle.y += speed;
     }
   }
 
-  ballCollision(roomName: string) {
-    const ball = this.gameRooms[roomName].element.ball;
-    const leftPaddle = this.gameRooms[roomName].element.leftPaddle;
-    const rightPaddle = this.gameRooms[roomName].element.rightPaddle;
+
+  ballCollision(gameRoom: GameInformation) {
+    const { ball, leftPaddle, rightPaddle } = gameRoom.element;
 
     // 천장과 바닥 충돌 확인
     if (ball.y - ball.radius < 0 || ball.y + ball.radius > 100) {
-      this.gameRooms[roomName].velocityY = -this.gameRooms[roomName].velocityY;
+      gameRoom.velocityY = -gameRoom.velocityY;
     }
 
     //ball이 paddle에 부딪히면 부딪힌 각도에 따라 방향을 바꿈
@@ -330,53 +331,54 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ball.y + ball.radius >= leftPaddle.y &&
       ball.y - ball.radius <= leftPaddle.y + leftPaddle.height) {
       const deltaY = ball.y - (leftPaddle.y + leftPaddle.height / 2);
-      this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
-      this.gameRooms[roomName].velocityY = deltaY * 0.1;  // 0.1은 부드러운 각도 조절 나중에 수정 필요
+      // ball.x 의 중심이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
+      if (ball.x + ball.radius > leftPaddle.x + leftPaddle.width / 2)
+        gameRoom.velocityX = -gameRoom.velocityX;
+      gameRoom.velocityY = deltaY * 0.2;  // 0.1은 속도 조절
     }
     if (ball.x + ball.radius > rightPaddle.x &&
       ball.y + ball.radius >= rightPaddle.y &&
       ball.y - ball.radius <= rightPaddle.y + rightPaddle.height) {
       const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
-      this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
-      this.gameRooms[roomName].velocityY = deltaY * 0.1;
+      // ball.x 의 중심이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
+      if (ball.x - ball.radius < rightPaddle.x + rightPaddle.width / 2)
+        gameRoom.velocityX = -gameRoom.velocityX;
+      gameRoom.velocityY = deltaY * 0.2;
     }
   }
 
   // 스코어 관리 및 종료 조건 확인 반환
-  gameScoreCheck(roomName: string): boolean {
-    const gameRoom = this.gameRooms[roomName];
-    let gamefinished = false;
+  gameScoreCheck(gameRoom: GameInformation): boolean {
+    const { element } = gameRoom;
+    const { ball, score } = element;
 
-    //ball이 paddle을 넘어가면 score를 올림
-    if (gameRoom.element.ball.x + gameRoom.element.ball.radius < gameRoom.element.leftPaddle.x) {
-      gameRoom.element.score.right += 1;
-      this.resetBallPosition(roomName, -1);
-    }
-    if (gameRoom.element.ball.x - gameRoom.element.ball.radius > gameRoom.element.rightPaddle.x + gameRoom.element.rightPaddle.width) {
-      gameRoom.element.score.left += 1;
-      this.resetBallPosition(roomName, 1);
+    //ball이 양끝 벽에 닿으면 score를 올림
+    if (ball.x < 0 || ball.x + ball.radius * 2 > 100) {
+      ball.x < 0 ? score.right += 1 : score.left += 1;
+      this.resetBallPosition(gameRoom);
     }
 
     // score가 설정값과 일치하면 게임 종료
-    if (gameRoom.element.score.left === gameRoom.score || gameRoom.element.score.right === gameRoom.score) {
-      return true;
-    }
-    return gamefinished;
+    return score.left === gameRoom.maxScore || score.right === gameRoom.maxScore;
   }
 
   // ball 위치 초기화
-  resetBallPosition(roomName: string, direct: number) {
-    this.gameRooms[roomName].element.ball.x = 45;
-    this.gameRooms[roomName].element.ball.y = 45;
-    this.gameRooms[roomName].velocityX = this.gameConfig.velocityX * direct;
-    this.gameRooms[roomName].velocityY = this.gameConfig.velocityY;
+  resetBallPosition(gameRoom: GameInformation) {
+    gameRoom.element.ball.x = 50 - gameRoom.element.ball.radius;
+    gameRoom.element.ball.y = 50 - gameRoom.element.ball.radius;
+
+    // direct 구하기
+    const directX = Math.random() < 0.5 ? -1 : 1;
+    const directY = Math.random() < 0.5 ? -1 : 1;
+
+    gameRoom.velocityX = this.gameConfig.velocityX * gameRoom.speed * directX;
+    gameRoom.velocityY = this.gameConfig.velocityY * gameRoom.speed * directY;
   }
 
-  async finishGame(roomName: string) {
-    const gameRoom = this.gameRooms[roomName];
+  async finishGame(gameRoom: GameInformation, roomName: string) {
     clearInterval(gameRoom.timer);
-    const winner = gameRoom.element.score.left === gameRoom.score ? gameRoom.sockets[0].id : gameRoom.sockets[1].id;
-    const loser = gameRoom.element.score.left === gameRoom.score ? gameRoom.sockets[1].id : gameRoom.sockets[0].id;
+    const winner = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[0].id : gameRoom.sockets[1].id;
+    const loser = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[1].id : gameRoom.sockets[0].id;
     await this.gameService.finishGame(winner, loser);
     this.nsp.to(roomName).emit('finishGame', { msg: '게임 끝났어요' });
   }
@@ -393,18 +395,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   createElement(): GameElement {
     return {
       ball: {
-        x: 45,
-        y: 45,
+        x: 50 - this.gameConfig.radius,
+        y: 50 - this.gameConfig.radius,
         radius: this.gameConfig.radius,
       },
       leftPaddle: {
-        x: 0,
+        x: 5,
         y: 40,
         width: this.gameConfig.paddleWidth,
         height: this.gameConfig.paddleHeight,
       },
       rightPaddle: {
-        x: 100 - this.gameConfig.paddleWidth,
+        x: 100 - this.gameConfig.paddleWidth - 5,
         y: 40,
         width: this.gameConfig.paddleWidth,
         height: this.gameConfig.paddleHeight,
@@ -416,3 +418,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 }
+
+
+// const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
+// this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
+// this.gameRooms[roomName].velocityY = deltaY * 0.1;
+// 위 수식이 의미하는게 무엇이지?
+// deltaY는 ball이 paddle의 중심에서 얼마나 떨어져 있는지를 나타내는 값이다.
+// deltaY가 0이면 paddle의 중심에 부딪힌 것이고, deltaY가 양수면 paddle의 아래쪽에 부딪힌 것이고, 음수면 paddle의 위쪽에 부딪힌 것이다.
+// deltaY가 0이면 ball의 velocityY는 0이 되고, deltaY가 양수면 ball의 velocityY는 양수가 되고, 음수면 ball의 velocityY는 음수가 된다.
+// 즉, deltaY가 0이면 ball의 velocityY는 0이 되고, deltaY가 양수면 ball의 velocityY는 양수가 되고, 음수면 ball의 velocityY는 음수가 된다.
+
+// deltaY 에 0.1을 곱하는것은 어떤 의미일까?
+// deltaY에 0.1을 곱하는 것은 ball의 velocityY를 paddle의 중심에서 멀어질수록 더 크게 만들어서 ball이 paddle의 중심에서 멀어질수록 더 빠르게 움직이게 하는 것이다.
+// 즉, paddle의 중심에서 멀어질수록 더 빠르게 움직이게 하는 것이다.
+

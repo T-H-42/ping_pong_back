@@ -34,6 +34,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(private userService: UserService) {} //, private readonly httpService: HttpService
 
+  @Post('/adminSignin')
+  adminSignIn(@Body() data:{username: string}, @Res() res: Response) {
+    console.log(`adminSignin 프로토콜 start ${data.username}`);
+    return this.userService.adminSignIn(data.username, res);
+  }
+
   @Post('/signin')
   signIn(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
     console.log('signin 프로토콜 start');
