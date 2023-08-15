@@ -164,7 +164,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // 방 생성 & socket.join
     this.gameRooms[roomName] = {
       sockets: sockets,
-      maxScore: 500,
+      maxScore: 2,
       speed: 1,
       timer: null,
       element: null,
@@ -265,7 +265,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 게임 주요 로직 관리 부분
   async positionUpdate(roomName: string) {
     // ball의 위치를 업데이트
-    this.logger.log(`Game 채널 positionUpdate 호출`);
     const gameRoom = this.gameRooms[roomName];
 
     this.ballUpdate(gameRoom);
@@ -298,13 +297,24 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { element, velocityX, velocityY, leftPaddleStatus, rightPaddleStatus } = gameRoom;
     const { ball } = element;
   
-    gameRoom.velocityX += 0.002;
-    gameRoom.velocityY += 0.001;
-    ball.x += gameRoom.velocityX;
-    ball.y += gameRoom.velocityY;
-
     this.updatePadlePosition(leftPaddleStatus, element.leftPaddle);
     this.updatePadlePosition(rightPaddleStatus, element.rightPaddle);
+
+    ball.x += gameRoom.velocityX;
+    ball.y += gameRoom.velocityY;
+    // 가속 모드
+    // if (gameRoom.velocityX > 0) {
+    //   gameRoom.velocityX += 0.008;
+    // } else {
+    //   gameRoom.velocityX -= 0.008;
+    // }
+    // if (gameRoom.velocityY > 0) {
+    //   gameRoom.velocityY += 0.004;
+    // } else {
+    //   gameRoom.velocityY -= 0.004;
+    // }
+
+
   }
 
   updatePadlePosition(status: number, paddle: Paddle) {
@@ -331,11 +341,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ball.y + ball.radius >= leftPaddle.y &&
       ball.y - ball.radius <= leftPaddle.y + leftPaddle.height) {
       const deltaY = ball.y - (leftPaddle.y + leftPaddle.height / 2);
-      // ball.x 의 중심이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
+      // ball.x 의 끝이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
       if (ball.x + ball.radius > leftPaddle.x + leftPaddle.width / 2)
         gameRoom.velocityX = -gameRoom.velocityX;
-      gameRoom.velocityY = deltaY * 0.2;  // 0.1은 속도 조절
+      gameRoom.velocityY = deltaY * 0.2;  // 0.2는 속도 및 각도 조절
     }
+
     if (ball.x + ball.radius > rightPaddle.x &&
       ball.y + ball.radius >= rightPaddle.y &&
       ball.y - ball.radius <= rightPaddle.y + rightPaddle.height) {
@@ -377,10 +388,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async finishGame(gameRoom: GameInformation, roomName: string) {
     clearInterval(gameRoom.timer);
-    const winner = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[0].id : gameRoom.sockets[1].id;
-    const loser = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[1].id : gameRoom.sockets[0].id;
+    const winnerId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[0].id : gameRoom.sockets[1].id;
+    const loserId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.sockets[1].id : gameRoom.sockets[0].id;
+    const winner = await this.userService.getUserByGameSocketId(winnerId);
+    const loser = await this.userService.getUserByGameSocketId(loserId);
     await this.gameService.finishGame(winner, loser);
-    this.nsp.to(roomName).emit('finishGame', { msg: '게임 끝났어요' });
+    await this.userService.leaderScoreUpdate(winner, loser);
+    const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
+    this.nsp.to(roomName).emit('finishGame', { isOwnerWin });
   }
 
   // socket으로 부터 token을 받아서 payload 추출

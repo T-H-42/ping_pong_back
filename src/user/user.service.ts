@@ -327,6 +327,10 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
+  async getUserByGameSocketId(id: string) {
+    return await this.userRepository.findOne({ where: { game_sockid: id } });
+  }
+
   async getUserNameByChatSockId(chat_socketid: string) {
     const query =
       await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
@@ -373,5 +377,22 @@ export class UserService {
     );
     if (!imageUpdate.affected) throw new UnauthorizedException();
     return 'succeed';
+  }
+
+  async leaderScoreUpdate(winner: User, loser: User) {
+    const winScore = winner.ladder_lv;
+    const loseScore = loser.ladder_lv;
+    if (winScore === null) {
+      winner.ladder_lv = 1000;
+    }
+    if (loseScore === null) {
+      loser.ladder_lv = 1000;
+    }
+    this.userRepository.update(winner.id, {
+      ladder_lv: winner.ladder_lv + 20,
+    });
+    this.userRepository.update(loser.id, {
+      ladder_lv: loser.ladder_lv - 20,
+    });
   }
 }

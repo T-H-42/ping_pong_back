@@ -42,5 +42,22 @@ export class GameRepository extends Repository<Game> {
       where game_id = ${game_id}`;
     await this.query(query);
   }
+
+  async isBegginer(user: User): Promise<boolean> {
+    const isBegginer = await this.query(`
+      select * from achievement
+      where user_id = ${user.id} and achievement = 'beginner'`);
+    if (isBegginer.length === 0) {
+      return true;
+    }
+    return false;
+  }
+
+  async createAchievement(user: User, achievement: string) {
+    const query = `
+      insert into achievement (user_id, achievement)
+      values (${user.id}, '${achievement}')`;
+    return await this.query(query);
+  }
 }
 

@@ -23,14 +23,11 @@ export class GameService {
     return game;
   }
 
-  async finishGame(winner: string, loser: string) {
-    const winPlayer = await this.getUserByGameSockId(winner);
-    const loserPlayer = await this.getUserByGameSockId(loser);
-    await this.gameRepository.finishGame(winPlayer, loserPlayer);
+  async finishGame(winner: User, loser: User) {
+    const isBegginer = await this.gameRepository.isBegginer(winner);
+    if (isBegginer) {
+      await this.gameRepository.createAchievement(winner, 'beginner');
+    }
+    await this.gameRepository.finishGame(winner, loser);
   }
-
-  async getUserByGameSockId(game_sockid: string): Promise<User> {
-    return await this.gameRepository.getUserByGameSockId(game_sockid);
-  }
-
 }
