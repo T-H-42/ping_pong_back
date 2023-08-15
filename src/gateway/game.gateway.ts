@@ -70,6 +70,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // 게임 방들을 담는 배열
   private gameRooms: { [key: string]: GameInformation } = {};
+  private RoomConnectedSocket: Map<Socket, string> = new Map();
 
   // 채널 입장
   async handleConnection(@ConnectedSocket() socket: Socket) {
@@ -98,31 +99,30 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.userService.disconnectGameSocket(payload.username);
     this.matchQueue = await this.matchQueue.filter(item => item !== socket);
     // 소켓이 속해 있는 roomName을 가져옴
-    const roomName = await Array.from(socket.rooms)[1];
-    this.logger.log(`roomName: ${roomName}`);
-    // room에 속해 있는 경우 처리
+    const roomName = this.RoomConnectedSocket.get(socket);
     if (roomName) {
-      if (this.gameRooms[roomName].timer) { // 게임중
-        //임시 처리
+      console.log(roomName);
+      if (this.gameRooms[roomName].timer) {
         this.logger.log(`과감한 interval 삭제`);
         clearInterval(this.gameRooms[roomName].timer);
-        this.gameRooms[roomName].sockets[0].leave(roomName);
-        this.gameRooms[roomName].sockets[1].leave(roomName);
-        delete this.gameRooms[roomName];
-      }
-      else { // 세팅중
-        socket.to(roomName).emit('ft_enemy_leave_setting_room', {
+        //탈주는 패배 처리
+        const winner = this.gameRooms[roomName].sockets.find(item => item !== socket);
+        const winnerUser = await this.userService.getUserByGameSocketId(winner.id);
+        const loserUser = await this.userService.getUserByUserName(payload.username);
+        this.gameService.finishGame(winnerUser, loserUser);
+      } else {
+        this.logger.log(`setting room에서 나감`);
+        this.nsp.to(roomName).emit('ft_enemy_leave_setting_room', {
           username: payload.username,
           access: true,
         });
-        this.gameRooms[roomName].sockets[0].leave(roomName);
-        this.gameRooms[roomName].sockets[1].leave(roomName);
-        delete this.gameRooms[roomName];
       }
+      this.gameRooms[roomName].sockets.forEach(item =>{
+        this.RoomConnectedSocket.delete(item);
+        item.leave(roomName);
+      });
+      delete this.gameRooms[roomName];
     }
-    // 세팅중에 끊긴 경우 세팅 room 삭제?
-    // 게임중에 끊긴 경우 들어오면 이어서 하게?
-    // 이 부분은 프론트와 상의 후 처리
   }
 
   // 매칭 큐에 유저를 넣는 함수
@@ -164,7 +164,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // 방 생성 & socket.join
     this.gameRooms[roomName] = {
       sockets: sockets,
-      maxScore: 2,
+      maxScore: 200,
       speed: 1,
       timer: null,
       element: null,
@@ -175,6 +175,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     sockets.forEach(socket => {
       //소켓 인덱스가 0 이면 오너는 true, 1이면 false
+      this.RoomConnectedSocket.set(socket, roomName);
       const isOwner = sockets.indexOf(socket) === 0 ? true : false;
       socket.join(roomName);
       console.log('roomName', roomName);
@@ -199,8 +200,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       username: payload.username,
       access: true,
     });
-    sockets[0].leave(roomName);
-    sockets[1].leave(roomName);
+    sockets.forEach(socket => {
+      this.RoomConnectedSocket.delete(socket);
+      socket.leave(roomName);
+    });
     console.log('이제 삭제');
     delete this.gameRooms[roomName];
   }
@@ -302,6 +305,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     ball.x += gameRoom.velocityX;
     ball.y += gameRoom.velocityY;
+
     // 가속 모드
     // if (gameRoom.velocityX > 0) {
     //   gameRoom.velocityX += 0.008;
@@ -332,28 +336,34 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { ball, leftPaddle, rightPaddle } = gameRoom.element;
 
     // 천장과 바닥 충돌 확인
-    if (ball.y - ball.radius < 0 || ball.y + ball.radius > 100) {
+    if (ball.y - ball.radius < 0) {
+      ball.y = ball.radius;
+      gameRoom.velocityY = -gameRoom.velocityY;
+    } else if (ball.y + ball.radius > 100) {
+      ball.y = 100 - ball.radius;
       gameRoom.velocityY = -gameRoom.velocityY;
     }
 
-    //ball이 paddle에 부딪히면 부딪힌 각도에 따라 방향을 바꿈
+    // ball이 paddle에 부딪히면 부딪힌 각도에 따라 방향을 바꿈
     if (ball.x - ball.radius < leftPaddle.x + leftPaddle.width &&
+      ball.x + ball.radius > leftPaddle.x &&
       ball.y + ball.radius >= leftPaddle.y &&
       ball.y - ball.radius <= leftPaddle.y + leftPaddle.height) {
       const deltaY = ball.y - (leftPaddle.y + leftPaddle.height / 2);
-      // ball.x 의 끝이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
+      // ball.x 의 끝과 패들의 중심을 기준으로 velocityX가 양수일지 음수일지 정함
       if (ball.x + ball.radius > leftPaddle.x + leftPaddle.width / 2)
-        gameRoom.velocityX = -gameRoom.velocityX;
+        gameRoom.velocityX = gameRoom.velocityX < 0 ? -gameRoom.velocityX : gameRoom.velocityX;
       gameRoom.velocityY = deltaY * 0.2;  // 0.2는 속도 및 각도 조절
     }
 
     if (ball.x + ball.radius > rightPaddle.x &&
+      ball.x - ball.radius < rightPaddle.x + rightPaddle.width &&
       ball.y + ball.radius >= rightPaddle.y &&
       ball.y - ball.radius <= rightPaddle.y + rightPaddle.height) {
       const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
       // ball.x 의 중심이 패들의 중심을 이미 지나쳤으면 velocityX는 아무런 변화가 없음
       if (ball.x - ball.radius < rightPaddle.x + rightPaddle.width / 2)
-        gameRoom.velocityX = -gameRoom.velocityX;
+        gameRoom.velocityX = gameRoom.velocityX > 0 ? -gameRoom.velocityX : gameRoom.velocityX;
       gameRoom.velocityY = deltaY * 0.2;
     }
   }
@@ -396,6 +406,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.userService.leaderScoreUpdate(winner, loser);
     const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
     this.nsp.to(roomName).emit('finishGame', { isOwnerWin });
+    this.gameRooms[roomName].sockets.forEach(socket => {
+      this.RoomConnectedSocket.delete(socket);
+      socket.leave(roomName);
+    });
   }
 
   // socket으로 부터 token을 받아서 payload 추출
