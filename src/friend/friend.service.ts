@@ -49,4 +49,23 @@ export class FriendService {
     // console.log(friendSocketList);
     return friendSocketList;
     }
+
+    async isFriend(userId: number,targetUserId: number)
+    {
+      if (userId === targetUserId)
+        return true;
+      const query1 = `select * from "friend" where "accecpt"=true and "sendIdId"=${userId} and "recvIdId"=${targetUserId};`;
+      const ret1 = await this.friendRepository.query(query1);
+
+      const query2 = `select * from "friend" where "accecpt"=true and "sendIdId"=${targetUserId} and "recvIdId"=${userId};`;
+      const ret2 = await this.friendRepository.query(query2);
+      if (ret1.length === 0 && ret2.length ===0)
+        return false;
+      return true;
+    }
+    async accecptFriend(recv: number,send: number)
+    {
+      const query = `update "friend" set "accecpt"=true where "sendIdId" = ${send} and "recvIdId" = ${recv};`;
+      await this.friendRepository.query(query);
+    }
 }

@@ -16,6 +16,7 @@ import { UserService } from 'src/user/user.service';
 import { Chat_Room } from 'src/entity/chat_room.entity';
 import { ChatRoomService } from 'src/chat_room/chat_room.service';
 import { Server } from 'http';
+import { FriendService } from 'src/friend/friend.service';
 
 interface MessagePayload {
   roomName: string;
@@ -37,6 +38,7 @@ export class ChatGateway
   constructor(
     private userService: UserService,
     private chatRoomService: ChatRoomService,
+    private friendService : FriendService,
   ) {}
   private logger = new Logger('Gateway');
 
@@ -184,6 +186,7 @@ export class ChatGateway
     console.log(`${payload.username} ${socket.id}`);
     createdRooms.push(_Data["roomName"]);
     // console.log({success: true, payload: _Data["roomName"]});
+    await this.userService.settingStatus(payload.username, 3);
     const list = await this.chatRoomService.getRoomList();
     socket.broadcast.emit("room-list",list);
     // this.nsp.emit('create-room', {index: _Data["roomName"], limit_user:_Data["limitUser"],room_stat: _Data["status"]});
@@ -232,15 +235,27 @@ export class ChatGateway
       await this.chatRoomService.joinUserToRoom(userId, _Data["roomName"], 0); //이미 유저 네임이 있으면 만들지 않음
 
     socket.join(_Data["roomName"]);
-    // console.log(payload.username, ' ', socket.id);
-    // socket.broadcast.except().to(_Data["roomName"]).emit()
-    
+
+    await this.userService.settingStatus(payload.username, 3);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}`,
       message: `님이 ${_Data["roomName"]}에 참가했습니다.`,
     });
+    const userList = await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]);
+    socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList});
     return { success: true }; //
   }
+
+  /*
+  자기자신 - daskim
+  UserList = [
+    {username:daskim,'''},
+    {username:daskim2,'''}
+    {username:daskim3,'''}
+  ]
+
+  
+  */
 
   // 채팅방(룸) 탈주
   @SubscribeMessage('leave-room')
@@ -266,11 +281,19 @@ export class ChatGateway
       socket.broadcast.emit("room-list",list);
     }
     socket.leave(roomName);
+    await this.userService.settingStatus(payload.username,1);
+    // const userRight = await this.chatRoomService.getUserRight(userId,roomName);
+    // return (await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]));
+    const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
+    socket.broadcast.to(roomName).emit("ft_getUserListInRoom", {userList});
+    
+    
     this.logger.log('채팅Room 퇴장하기 호출1');
     socket.broadcast.to(roomName).emit('ft_message', {
       username: `${payload.username}`,
       message: `님이 ${roomName}에서 나갔습니다`,
     });
+    
     this.logger.log('채팅Room 퇴장하기 호출2');
     return { success: true };
   }
@@ -309,6 +332,7 @@ export class ChatGateway
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) === false)
       await this.chatRoomService.joinUserToRoom(userId, roomName, 0); //이미 유저 네임이 있으면 만들지 않음
     socket.join(roomName);
+    await this.userService.settingStatus(payload.username, 2);
     console.log('========???여기까지???');
     return { success: true, index: roomName };
   }
@@ -333,6 +357,7 @@ export class ChatGateway
     const userId = requestUser.id;// 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
     await this.chatRoomService.leaveUserFromRoom(userId, roomName);
     socket.leave(roomName); //DM과 다르게, 상대방 소켓을 찾아내서 leave 시켜야 한다.
+    await this.userService.settingStatus(payload.username,1);
     socket.broadcast.to(roomName).emit('ft_dm', {
       username: `${payload.username}`,
       message: `님이 ${roomName}에서 나갔습니다`,
@@ -369,17 +394,19 @@ export class ChatGateway
 
       await socket.broadcast.to(friends).emit('ft_dm', {
         username: `${payload.username}`,
+        receiver : receiver,
         message,
         status,
       });
     } else {
       await socket.broadcast.to(roomName).emit('ft_dm', {
         username: `${payload.username}`,
+        receiver : receiver,
         message,
         status,
       });
     }
-    return { username: payload.username, message, status };
+    return { username: payload.username, receiver: receiver, message, status };
   }
 
   @SubscribeMessage('ft_get_dm_log') //Daskim -> roomName -> Back
@@ -450,11 +477,13 @@ export class ChatGateway
     ////////////////////////////////ft_getUserListInRoom를 쏴주기 위함.
     const user = await this.userService.getUserByUserName(payload.username);
     const userId = user.id;
-    const userRight = await this.chatRoomService.getUserRight(userId,_Data["roomName"]);
+    // const userRight = await this.chatRoomService.getUserRight(userId,_Data["roomName"]);
     
     // return (await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]));
     const userList = await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]);
-    socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList, userRight:1}); // ft_getUserListInRoom의 리턴값! return ({userList, userRight:userRight});
+    // socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList, userRight:1}); // ft_getUserListInRoom의 리턴값! return ({userList, userRight:userRight});
+    socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList}); // ft_getUserListInRoom의 리턴값! return ({userList, userRight:userRight});
+
     //// 상대방이 1이므로 1로 박아서 주고있는데, 이건 문제임.
     ////////////////////////////////ft_getUserListInRoom를 쏴주기 위함.
     //////////test
@@ -462,7 +491,9 @@ export class ChatGateway
       username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
     });
-    socket.emit('ft_getUserListInRoom',{userList, userRight:userRight});
+    // socket.emit('ft_getUserListInRoom',{userList, userRight:userRight});
+    socket.emit('ft_getUserListInRoom',{userList});
+
     //////////test
     // return {
     //   username: `${payload.username}(Admin)`,
@@ -503,10 +534,14 @@ export class ChatGateway
       username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
     });
-    return {
+    // return {
+    //   username: `${payload.username}(Admin)`,
+    //   message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
+    // };
+    socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
-    };
+    });
   }
 
 
@@ -546,10 +581,14 @@ export class ChatGateway
       username: `${payload.username}(Admin)`,
       message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     });
-    return {
+    // return {
+    //   username: `${payload.username}(Admin)`,
+    //   message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
+    // };
+    socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
       message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
-    };
+    });
   }
 
   @SubscribeMessage('ft_getUserListInRoom') //front위해 스스스스로로가  just,admin,Owner인지에 대한 값을 넣어줄지 생각필요
@@ -568,11 +607,13 @@ export class ChatGateway
     }
     const user = await this.userService.getUserByUserName(payload.username);
     const userId = user.id;
-    const userRight = await this.chatRoomService.getUserRight(userId,roomName);
+    // const userRight = await this.chatRoomService.getUserRight(userId,roomName);
 
     // return (await this.chatRoomService.getUserListInChatRoom(roomName));
     const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
-    return ({userList, userRight:userRight});
+    // return ({userList, userRight:userRight});
+    return ({userList});
+
   }
   //*front에서 ft_mute를 setInterval()로 쏴주시면 됩니다. 혹은 다른 이벤트로 해서 줘도 됩니다.
   @SubscribeMessage('ft_mute')  
@@ -603,10 +644,14 @@ export class ChatGateway
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     });
 
-    return {
+    // return {
+    //   username: `${payload.username}(Admin)`,
+    //   message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
+    // };
+    socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
-    };
+    });
     //roomName에 emit, 자신에 return
   }
 
@@ -645,15 +690,19 @@ export class ChatGateway
       username: `${payload.username}(Admin)`,
       message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///리스트로 일단 가가지지고 있있는는데데, 어어떻떻게  해해줄줄지지는  같같이 논논의의하하기.
     })
-    return {
+    // return {
+    //   username: `${payload.username}(Admin)`,
+    //   message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
+    //   // success : 2
+    // }
+    socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
-      message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
-      // success : 2
-    }
+      message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`,
+    });
   }
   
   @SubscribeMessage('ft_kick')
-  async ft_kick(
+  async kickRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다.
   )
@@ -669,31 +718,185 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
-      const targetUserId = targetUser.id;
+    const targetUserId = targetUser.id;
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     ///당사자에게만 쏴주면, 이걸 받아서 처리?
-    const target = await this.userService.getChatSocketByUserName(_Data["targetUser"]);
     let targetList = [];
-    targetList.push(target[0].chat_sockid);
+    // targetList.push(target[0].chat_sockid);
+    targetList.push(targetUser.chat_sockid);
 
-    await socket.broadcast.to(targetList).emit('ft_kick', {
-      success : true
-    });
+    
 
+    
     await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`,
       message: `${_Data["targetUser"]}님이 현재 채팅방에서 강퇴 되었습니다.`, 
     })
-    return {
+    socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
-      message: `${_Data["targetUser"]}님이 현재 채팅방에서 강퇴 되었습니다.`, 
+      message: `${targetUser.username}님이 채팅방에서 강퇴 되었습니다.`,
+    });
+
+    await socket.broadcast.to(targetList).emit('ft_kick', {
+      success : true
+    });
+  }
+
+  /////
+  @SubscribeMessage('ft_addfriend')
+  async addFriend(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다. -> receiver
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
     }
+    const user = await this.userService.getUserByUserName(payload.username);
+    const recvUser = await this.userService.getUserByUserName(_Data["receiver"]);
+
+    const userId = user.id;
+    const targetUserId = recvUser.id;
+    if (await this.friendService.isFriend(userId,targetUserId)===true)
+      return {success : false};
+    await this.friendService.addFriend(userId,targetUserId);
+    let targetList = [];
+    targetList.push(recvUser.chat_sockid);
+    
+    await socket.broadcast.to(targetList).emit('ft_addfriend', {
+      sender : payload.username,
+      receiver : recvUser.username,
+      success : true
+    });
+    return {
+      sender : payload.username,
+      receiver : recvUser.username,
+      success : true
+    };
+  }
+
+  @SubscribeMessage('ft_acceptfriend') ///받은 사람이 수락한 경우에 대함.
+  async accecptFriend(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다. 이때는 BE입장에서 targetUser가 "sendIdId"에 있을 것임
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const recvUser = await this.userService.getUserByUserName(payload.username);
+    const sendUser = await this.userService.getUserByUserName(_Data["sender"]);
+
+    const recvUserId = recvUser.id;
+    const sendUserId = sendUser.id;
+    await this.friendService.accecptFriend(recvUserId, sendUserId);
+    let targetList = [];
+    targetList.push(sendUser.chat_sockid);
+    
+    await socket.broadcast.to(targetList).emit('ft_accecptfriend', {
+      success : true
+    });
+    return {
+      success : true
+    };
+
+    // await this.userService.settingStatus(name,2); --> join
+    // await this.userService.settingStatus(name,1); --> leave
+  }
+
+  @SubscribeMessage('ft_getfriendlist') ///상대에 대해 채팅방으로 초대버튼 누른 경우
+  async getFriendList(
+    @ConnectedSocket() socket: Socket,
+    // @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다. 이때는 BE입장에서 targetUser가 "sendIdId"에 있을 것임
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const user = await this.userService.getUserByUserName(payload.username);
+    socket.emit('ft_getfriendlist', await this.friendService.findFriendList(user));
+    return (await this.friendService.findFriendList(user));
+  }
+
+  @SubscribeMessage('ft_invitechat') ///상대에 대해 채팅방으로 초대버튼 누른 경우
+  async inviteChat(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다. 이때는 BE입장에서 targetUser가 "sendIdId"에 있을 것임
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const targetUser = await this.userService.getUserByUserName(
+      _Data["targetUser"],
+      );
+    if (targetUser.status != 1)
+      return {success : false};
+    let targetList = [];
+    console.log('--------------');
+    console.log(_Data);
+    console.log('--------------');
+
+
+    // targetList.push(target[0].chat_sockid);
+    targetList.push(targetUser.chat_sockid);
+    await socket.broadcast.to(targetList).emit('ft_invitechat', { //// 초대받은 대상소켓에게 emit합니다.
+      index : _Data["roomName"],
+      success : true,
+      sender : `${payload.username}`
+    }); ////감지해서 받으면 모달 띄우기 -> 그 모달에서 "수락" 누르면 join-room 으로 해주시면 됩니다. password는 기존처럼 빈문자 주시면 되구요~
+    return {success : true};
   }
 
 
+  /*
+                    CHAT  TEST CASE!
+  비공개방,비밀번호 방 테스트 : 여러 유저가 방을 여러개 만든다. -> 비공개방에 대해서는 보이지 말아야 하며, 비밀번호방은 자물쇠가 보여야 함
+  초대테스트 : 초대해놓고 방 나간다음 초대의 대상이 되는 유저가 초대를 수락하는 경우!
+  ㄴ> 인원수가 꽉 차있는 경우
+
+  비밀번호 테스트 : 비밀번호가 틀린경우
+  비밀번호 테스트 : 비밀번호가 맞지만 인원이 꽉차있는 경우
+
+  일반 방 테스트 : 인원이 꽉 차있는 경우.
+
+  ban 테스트 : 밴한 유저가 나간다음 다시 들어오려는 경우
+  kick 테스트 : 강퇴만 됨. 다시 들어오는 것 가능.
+  ban하고 kick : 못들어와야함
+
+  block 테스트 : 여러 유저가 같은 방에 있을때, block한 유저의 메시지는 보이지 말고, 나머지 유저들에게는 잘 보여야함.
+  block && mute 테스트 : 한명은 블락하고 한명은 뮤트. -> 제3자입장에선 뮤트만 안 보여야 함. 당사자 간에는 
+  block && mute해제 테스트 : 위의 케이스에서 시간이 지난 뒤 뮤트 풀린 유저에 대해서도 잘 보여야한다.
+
+
+                    CHAT  DETAIL TODO
+  닉네임 변경하는 경우, dm인 chat_room, chat_user, chat_room_msg에서 본인이 포함된 모든 index 수정 
+  dm의 경우에 나가기 하면 -1
+
+  */
 
   ////////////////////////////////////////// Payload //////////////////////////////////////////
   async getPayload(socket: Socket) {
@@ -704,11 +907,6 @@ export class ChatGateway
     return (await jwt.verify(token, secret)) as any;
   }
 
-
-
-
   ////////////////////////////////////////test for kick////////////////////////
   ////////////////////////////////////////test for kick////////////////////////
-
-
 }

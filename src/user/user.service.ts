@@ -430,6 +430,9 @@ export class UserService {
     
     // return 'succeed';
   }
+  async settingStatus(username: string, status: number) {
+    await this.userRepository.update({ username }, { status });
+  }
 }
 
 

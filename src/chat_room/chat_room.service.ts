@@ -64,6 +64,11 @@ export class ChatRoomService {
         console.log("in leave User in ROOM");
         const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
         update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
+        
+        const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
+        const chatroom = await this.chatRoomRepository.query(query2);
+        if (chatroom[0].curr_user === 0)
+            return ;
         await this.chatRoomRepository.query(query);
     }
     
@@ -241,9 +246,12 @@ export class ChatRoomService {
     
     async isValidPassword(roomName:string, password : string)
     {
+        const q = `select * from "chat_room" where index='${roomName}';`;
+        const check =  await this.chatRoomRepository.query(q);
+        if (check.length === 0)
+            return false;
         const query = `select "password" from "chat_room" where index='${roomName}';`;
         const obj = await this.chatRoomRepository.query(query);
-        
         if (await bcrypy.compare(password, obj[0].password))
             return true;
         return false;
