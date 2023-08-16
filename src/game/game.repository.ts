@@ -38,7 +38,7 @@ export class GameRepository extends Repository<Game> {
     // 나중에 시간 추가
     const query = `
       update game
-      set winner = ${winner.id}, loser = ${loser.id}, finished = true
+      set winner = ${winner.id}, loser = ${loser.id}, time =  ${new Date().toISOString()} finished = true
       where game_id = ${game_id}`;
     await this.query(query);
   }
