@@ -4,7 +4,9 @@ import * as bcrypy from 'bcrypt';
 
 @Injectable()
 export class ChatRoomService {
-    constructor(private chatRoomRepository : ChatRoomRepository){}
+    constructor(
+        private chatRoomRepository : ChatRoomRepository,
+        ){}
     
     async createDmRoom(userid : number, roomName : string)
     {
@@ -313,7 +315,7 @@ export class ChatRoomService {
         if (await this.isMuted(roomName,targetUserId)===true)
             return false;
         // const query = `update "chat_user" set "mute_end_time" = "NOW()+" , ;`;
-        const query = `update "chat_user" set "mute_end_time" = NOW()+(2 || 'minutes')::interval where "user_id" = ${targetUserId}`; //10분 증가해서 저장!
+        const query = `update "chat_user" set "mute_end_time" = NOW()+(1 || 'minutes')::interval where "user_id" = ${targetUserId}`; //10분 증가해서 저장!
         await this.chatRoomRepository.query(query);
         //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
         
@@ -331,7 +333,13 @@ export class ChatRoomService {
         */
 
         const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
-        return (await this.chatRoomRepository.query(query));
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length!==0)
+        {
+            const query2 = `update "chat_user" set "mute_end_time"=null where  NOW() > "mute_end_time"::timestamp;`;
+            await this.chatRoomRepository.query(query2);
+        }
+        return (ret);
     }
     
     

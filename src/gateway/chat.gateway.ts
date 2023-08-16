@@ -15,6 +15,7 @@ import * as config from 'config';
 import { UserService } from 'src/user/user.service';
 import { Chat_Room } from 'src/entity/chat_room.entity';
 import { ChatRoomService } from 'src/chat_room/chat_room.service';
+import { Server } from 'http';
 
 interface MessagePayload {
   roomName: string;
@@ -111,9 +112,9 @@ export class ChatGateway
       return {success : false};
     await this.chatRoomService.saveMessage(roomName, userId, message);
     const userBlockedMeList =  await this.chatRoomService.findWhoBlockedMe(userId,roomName);//block을 제외한 유저에게 보내기
-    console.log("-----------in ft_message find user Who Blocked Me -----------");
-    console.log(userBlockedMeList);
-    console.log("-----------in ft_message find user Who Blocked Me -----------");
+    // console.log("-----------in ft_message find user Who Blocked Me -----------");
+    // console.log(userBlockedMeList,message,roomName);
+    // console.log("-----------in ft_message find user Who Blocked Me -----------");
 
     await socket.broadcast.except(userBlockedMeList).to(roomName).emit('ft_message', {
       username: `${payload.username}`,
@@ -434,10 +435,6 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return error;
     }
-    // console.log("-------------------------for test leaveroom1-------------------------");
-    // await this.handleLeaveRoom(socket, _Data["roomName"]);
-    // console.log("-------------------------for test leaveroom2-------------------------");
-    /////for test!!
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
@@ -447,13 +444,30 @@ export class ChatGateway
       return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     await this.chatRoomService.setAdmin(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
     });
-    return {
-      username: `${payload.username}`,
+    ////////////////////////////////ft_getUserListInRoom를 쏴주기 위함.
+    const user = await this.userService.getUserByUserName(payload.username);
+    const userId = user.id;
+    const userRight = await this.chatRoomService.getUserRight(userId,_Data["roomName"]);
+    
+    // return (await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]));
+    const userList = await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]);
+    socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList, userRight:1}); // ft_getUserListInRoom의 리턴값! return ({userList, userRight:userRight});
+    //// 상대방이 1이므로 1로 박아서 주고있는데, 이건 문제임.
+    ////////////////////////////////ft_getUserListInRoom를 쏴주기 위함.
+    //////////test
+    socket.emit('ft_message', {
+      username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
-    };
+    });
+    socket.emit('ft_getUserListInRoom',{userList, userRight:userRight});
+    //////////test
+    // return {
+    //   username: `${payload.username}(Admin)`,
+    //   message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
+    // };
   }
 
   
@@ -486,11 +500,11 @@ export class ChatGateway
         success : false ///이미 blocked인 경우
       };
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
     });
     return {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 금지되었습니다.`,
     };
   }
@@ -529,17 +543,14 @@ export class ChatGateway
         success : false ///이미 blocked인 경우
       };
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     });
     return {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     };
   }
-
-
-  
 
   @SubscribeMessage('ft_getUserListInRoom') //front위해 스스스스로로가  just,admin,Owner인지에 대한 값을 넣어줄지 생각필요
   async getUserListInRoom(
@@ -562,31 +573,6 @@ export class ChatGateway
     // return (await this.chatRoomService.getUserListInChatRoom(roomName));
     const userList = await this.chatRoomService.getUserListInChatRoom(roomName);
     return ({userList, userRight:userRight});
-    /*
-    ASIS
-    return [
-      {},
-      {},
-      '''
-      {}
-    ]
-
-    TOBE
-    return {
-      userList:
-        [
-          {
-            username:nhwang,
-            right:3
-          },
-          {
-            username:daskim,
-            right:3
-          },{}'''{}
-        ],
-      userRight:3
-    }
-    */
   }
   //*front에서 ft_mute를 setInterval()로 쏴주시면 됩니다. 혹은 다른 이벤트로 해서 줘도 됩니다.
   @SubscribeMessage('ft_mute')  
@@ -613,11 +599,12 @@ export class ChatGateway
       return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`, //
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     });
+
     return {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     };
     //roomName에 emit, 자신에 return
@@ -631,9 +618,12 @@ export class ChatGateway
   )
   {
     // console.log("test doodooo");
+    if (await this.chatRoomService.isEmptyRoom(_Data["roomName"])===true)
+      return {success : 1};
     const muteUnlockList = await this.chatRoomService.checkMuteUnlock(_Data["roomName"]); //mute 해제된 username들의 리스트 던지기.
     if (muteUnlockList.length === 0)
-      return {success : false};
+      return {success : 0}; ///이건 방이 있을 때는 계속 생성해야 하기 때문에 방이 없으면 false가 아닌 다른 값을 줘야할 것 같은데? -> 0
+    /////방이 없으면, 특정한 값을 프론트로 주고, 그 값을 받게되면 프론트는 
     let unlockedUsers = [];
     muteUnlockList.map((i) => {
       if (i.chat_sockid != null)
@@ -647,13 +637,18 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return error;
     }
+    console.log("--------userUnlockList---------");
+    console.log(unlockedUsers);
+    console.log("--------userUnlockList---------");
+
     await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${payload.username}(Admin)`,
       message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///리스트로 일단 가가지지고 있있는는데데, 어어떻떻게  해해줄줄지지는  같같이 논논의의하하기.
     })
     return {
-      username: `${payload.username}`,
-      message: `${payload.username}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
+      username: `${payload.username}(Admin)`,
+      message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
+      // success : 2
     }
   }
   
@@ -663,23 +658,39 @@ export class ChatGateway
     @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다.
   )
   {
-    //  Back단에서 leaveroom호출 자체가 힘들다...
-    //  내가 상대방에게 emit을 하게되면, 이건 프론트로 무조건 가게 되는데,
-    
-    
-    // await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-    //   username: `${payload.username}`,
-    //   message: `${unlockedUsers}님이 현재 채팅방에서 강퇴 되었습니다.`, ///리스트로 일단 가가지지고 있있는는데데, 어어떻떻게  해해줄줄지지는  같같이 논논의의하하기.
-    // })
-    // return {
-    //   username: `${payload.username}`,
-    //   message: `${payload.username}님이 현재 채팅방에서 강퇴 되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
-    // }
-    /*
-    내가 먼저 ft_message랑 leave룸까지 처리해버린다면?
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    const targetUser = await this.userService.getUserByUserName(
+      _Data["targetUser"],
+      );
+      const targetUserId = targetUser.id;
+      
+    const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
+    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    ///당사자에게만 쏴주면, 이걸 받아서 처리?
+    const target = await this.userService.getChatSocketByUserName(_Data["targetUser"]);
+    let targetList = [];
+    targetList.push(target[0].chat_sockid);
 
+    await socket.broadcast.to(targetList).emit('ft_kick', {
+      success : true
+    });
 
-    */
+    await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}(Admin)`,
+      message: `${_Data["targetUser"]}님이 현재 채팅방에서 강퇴 되었습니다.`, 
+    })
+    return {
+      username: `${payload.username}(Admin)`,
+      message: `${_Data["targetUser"]}님이 현재 채팅방에서 강퇴 되었습니다.`, 
+    }
   }
 
 
@@ -692,4 +703,12 @@ export class ChatGateway
     const secret = serverConfig.secret;
     return (await jwt.verify(token, secret)) as any;
   }
+
+
+
+
+  ////////////////////////////////////////test for kick////////////////////////
+  ////////////////////////////////////////test for kick////////////////////////
+
+
 }
