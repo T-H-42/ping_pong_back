@@ -405,7 +405,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.gameService.finishGame(winner, loser);
     await this.userService.leaderScoreUpdate(winner, loser);
     const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
-    this.nsp.to(roomName).emit('finishGame', { isOwnerWin });
+    this.nsp.to(roomName).emit('ft_finish_game', { isOwnerWin });
     this.gameRooms[roomName].sockets.forEach(socket => {
       this.RoomConnectedSocket.delete(socket);
       socket.leave(roomName);
