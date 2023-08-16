@@ -27,7 +27,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.13.2.7:3000'],
+    origin: ['http://10.15.1.4:3000'],
   },
 })
 export class ChatGateway
@@ -434,11 +434,14 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return error;
     }
+    // console.log("-------------------------for test leaveroom1-------------------------");
+    // await this.handleLeaveRoom(socket, _Data["roomName"]);
+    // console.log("-------------------------for test leaveroom2-------------------------");
+    /////for test!!
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
       const targetUserId = targetUser.id;
-      
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 1) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
@@ -627,16 +630,57 @@ export class ChatGateway
     @MessageBody() _Data: string, ////roomName만 주셔도 됩니다.
   )
   {
-    console.log("test doodooo");
-    const muteUnlockList = await this.chatRoomService.deleteMute(_Data["roomName"]); //mute 해제된 username들의 리스트 던지기.
-    
-    // [
-    //    {username : nhwang},
-    //    {username : test1},....
-    // ]
-    // now()보다 시간이 적으면, delete하고 해당 유저들 전체에게 mute해제되었음을 ft_message로 주면 될듯.
+    // console.log("test doodooo");
+    const muteUnlockList = await this.chatRoomService.checkMuteUnlock(_Data["roomName"]); //mute 해제된 username들의 리스트 던지기.
+    if (muteUnlockList.length === 0)
+      return {success : false};
+    let unlockedUsers = [];
+    muteUnlockList.map((i) => {
+      if (i.chat_sockid != null)
+        unlockedUsers.push(i.username)}
+    );
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('payloaderr in msg');
+      return error;
+    }
+    await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+      username: `${payload.username}`,
+      message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///리스트로 일단 가가지지고 있있는는데데, 어어떻떻게  해해줄줄지지는  같같이 논논의의하하기.
+    })
+    return {
+      username: `${payload.username}`,
+      message: `${payload.username}님이 현재 채팅방에서 음소거 해제되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
+    }
   }
   
+  @SubscribeMessage('ft_kick')
+  async ft_kick(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, ////roomName, targetUser만 주시면 됩니다.
+  )
+  {
+    //  Back단에서 leaveroom호출 자체가 힘들다...
+    //  내가 상대방에게 emit을 하게되면, 이건 프론트로 무조건 가게 되는데,
+    
+    
+    // await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
+    //   username: `${payload.username}`,
+    //   message: `${unlockedUsers}님이 현재 채팅방에서 강퇴 되었습니다.`, ///리스트로 일단 가가지지고 있있는는데데, 어어떻떻게  해해줄줄지지는  같같이 논논의의하하기.
+    // })
+    // return {
+    //   username: `${payload.username}`,
+    //   message: `${payload.username}님이 현재 채팅방에서 강퇴 되었습니다.`, ///당사자에게만 표시되도록 일부러 다르게 했습니다.
+    // }
+    /*
+    내가 먼저 ft_message랑 leave룸까지 처리해버린다면?
+
+
+    */
+  }
 
 
 

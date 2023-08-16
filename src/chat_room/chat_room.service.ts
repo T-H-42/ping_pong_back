@@ -319,7 +319,7 @@ export class ChatRoomService {
         
     }
 
-    async deleteMute(roomName : string)
+    async checkMuteUnlock(roomName : string)
     {
         //해제된 녀석들의 chatSocket 던져주기
         /*
@@ -327,10 +327,10 @@ export class ChatRoomService {
         ㄴ-> as "A"
 
         
-        `select "user"."username" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as 
-        "A" left join "user" on "A"."user_id" = "user"."id"`;
+        `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
         */
-        const query = `select "user"."username" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+
+        const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
         return (await this.chatRoomRepository.query(query));
     }
     
