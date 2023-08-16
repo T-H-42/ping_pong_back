@@ -117,10 +117,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           access: true,
         });
       }
-      this.gameRooms[roomName].sockets.forEach(item =>{
-        this.RoomConnectedSocket.delete(item);
-        item.leave(roomName);
-      });
+      await this.handleLeaveRoom(this.gameRooms[roomName].sockets, roomName);
       delete this.gameRooms[roomName];
     }
   }
@@ -173,23 +170,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       leftPaddleStatus: 0,
       rightPaddleStatus: 0,
     }
-    sockets.forEach(socket => {
-      //소켓 인덱스가 0 이면 오너는 true, 1이면 false
-      this.RoomConnectedSocket.set(socket, roomName);
-      const isOwner = sockets.indexOf(socket) === 0 ? true : false;
-      socket.join(roomName);
-      console.log('roomName', roomName);
-      socket.emit('ft_match_success', {
-        success: true,
-        roomName,
-        isOwner,
-      });
-    });
+    this.handleJoinRoom(sockets, roomName);
   }
 
   // room에서 소켓이 나가는 경우
   @SubscribeMessage('ft_leave_setting_room')
-  async handleLeaveRoom(
+  async handleLeaveSettingRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string,) {
     this.logger.log(`Game 채널 ft_leave_setting_room 호출`);
@@ -200,12 +186,36 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       username: payload.username,
       access: true,
     });
-    sockets.forEach(socket => {
+    await this.handleLeaveRoom(sockets, roomName);
+  }
+
+  // 방에서 나갈 때 공통으로 처리해야 하는 함수
+  handleLeaveRoom(sockets: Socket[], roomName: string) {
+    sockets.forEach(async socket => {
       this.RoomConnectedSocket.delete(socket);
       socket.leave(roomName);
+      const payload = await this.getPayload(socket);
+      this.userService.settingStatus(payload.username, 1);
     });
-    console.log('이제 삭제');
     delete this.gameRooms[roomName];
+  }
+
+  // 방에 들어갈 때 공통으로 처리해야 하는 함수
+  handleJoinRoom(sockets: Socket[], roomName: string) {
+    sockets.forEach(async socket => {
+      //소켓 인덱스가 0 이면 오너는 true, 1이면 false
+      this.RoomConnectedSocket.set(socket, roomName);
+      const isOwner = sockets.indexOf(socket) === 0 ? true : false;
+      socket.join(roomName);
+      const payload = await this.getPayload(socket);
+      this.userService.settingStatus(payload.username, 3);
+      console.log('roomName', roomName);
+      socket.emit('ft_match_success', {
+        success: true,
+        roomName,
+        isOwner,
+      });
+    });
   }
 
   // 게임 설정
@@ -406,10 +416,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.userService.leaderScoreUpdate(winner, loser);
     const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
     this.nsp.to(roomName).emit('ft_finish_game', { isOwnerWin });
-    this.gameRooms[roomName].sockets.forEach(socket => {
-      this.RoomConnectedSocket.delete(socket);
-      socket.leave(roomName);
-    });
+    return await this.handleLeaveRoom(this.gameRooms[roomName].sockets, roomName);
   }
 
   // socket으로 부터 token을 받아서 payload 추출

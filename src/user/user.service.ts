@@ -367,6 +367,10 @@ export class UserService {
     return await userProfile;
   }
 
+  async settingStatus(username: string, status: number) {
+    await this.userRepository.update({ username }, { status });
+  }
+
   async uploadProfileImage(username: string, image: Express.Multer.File) {
     if (!image) {
       throw new BadRequestException();
