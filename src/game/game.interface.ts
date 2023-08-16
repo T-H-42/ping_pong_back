@@ -8,6 +8,6 @@ interface IPaddleMove {
 // game setting 정보
 interface ISettingInformation {
 	score: number;
-	speed: number;
+	speedMode: number;
 	roomName: string;
 }

@@ -384,6 +384,9 @@ export class UserService {
   }
 
   async leaderScoreUpdate(winner: User, loser: User) {
+    if (!winner || !loser) {
+      return ;
+    }
     const winScore = winner.ladder_lv;
     const loseScore = loser.ladder_lv;
     if (winScore === null) {
