@@ -65,15 +65,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private logger = new Logger('Gateway');
   // 매칭 큐 배열
   private matchQueue: Socket[] = [];
-  // 게임 방들을 담는 배열
-  private gameRooms: { [key: string]: GameInformation } = {};
   // 소켓이 속한 룸네임 추출을 위한 맵
   private RoomConnectedSocket: Map<Socket, string> = new Map();
 
+  // 게임 방들을 담는 배열
+  private gameRooms: { [key: string]: GameInformation } = {};
+  
   // 채널 입장
   async handleConnection(@ConnectedSocket() socket: Socket) {
-    this.logger.log(`Game 채널 connect 호출`);
-    console.log(socket);
+    this.logger.log(`Game 채널 connect 호출: `, socket.id);
+    console.log('첫번째', this.nsp.sockets.get(socket.id).id);
+    console.log('내가 바로 두번째', socket.id);
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -130,7 +132,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.matchQueue = await this.matchQueue.filter(item => item !== socket);
       return { success: true };
     }
-  
+
   // 게임룸에 있을 때 비정상 종료한 경우 처리
   async handleAbnormalExit(socket: Socket, payload: any) {
     const roomName = this.RoomConnectedSocket.get(socket);
@@ -175,7 +177,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     delete this.gameRooms[roomName];
   }
-  
+    // 방에서 나갈 때 공통으로 처리해야 하는 함수
     // room에서 소켓이 나가는 경우
     @SubscribeMessage('ft_leave_setting_room')
     async handleLeaveSettingRoom(
@@ -190,6 +192,61 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return error;
       }
     }
+////////////////////////////////chat -> game////////////////////////////////
+  // 게임초대
+  // 방장 -> b 방장 소켓, 게스트 이름
+  async handleInviteGame(socket: Socket, ownerName: string, guestName: string) {
+    this.logger.log(`Game 채널 handleInviteGame 호출`);
+    const guestUser = await this.userService.getUserByUserName(guestName);
+    // 유저가 온라인이 아니면? return false
+    if (guestUser.status === 0)
+      return false;
+    // 초대 알림
+    socket.to(guestUser.game_sockid).emit('ft_invite_game_from_chat', {
+      ownerName,
+    });
+    return true;
+  }
+
+  // F -> B 수락 거절 결과
+  @SubscribeMessage('ft_invite_result')
+  async handleInviteResult(socket: Socket, ownerName: string, accept: boolean) {
+    // 초대 수락 시
+    if (accept) {
+      const ownerUser = await this.userService.getUserByUserName(ownerName);
+      // 방장이 나가있다면?
+      if (!ownerUser || (ownerUser.status !== 1 && ownerUser.status !== 3))
+        return false;
+      const ownerSokcet = this.nsp.sockets.get(ownerUser.game_sockid);
+      const sockets = [ownerSokcet, socket];
+      await this.createGameRoom(sockets);
+      }
+    else {
+      return false;
+    }
+  }
+  
+  // // 초대, 수락으로 인한 방 생성
+  // @SubscribeMessage('ft_invite_game_from_chat') //ㅁㅏ으ㅁ에 안안드드시시면  바바꿔꿔주주세세요요~ -> 채팅방 프론트에서 "게임으로 초대" 버튼 누른 경우 호출됨. (FE에서 emit!)
+  // createInviteGameFromChat(sockets: Socket[],sender : string) { //최초로 보낸 사람의 username을 보내주시면 될 것 같습니다. //로컬 소켓???
+  //   //->상대방한테 emit하려면 결국 지정한 상대방의 game_sockid가 있어야 할 것... -> 어쩔수 없이 DB에서 가져올 수밖에없지않나...? 소켓을 두개 쏴주는거? 불가할 것이니
+  //   // 근데 소켓은 객체이기 때문에 sockid만 준다고 문제가 해결될 것으로 보이진 않는다.
+  // }
+  /////////게임초대/////////
+  // RoomConnectedSocket + 방장 소켓
+  // 수락
+  // RoomConnectedSocket + 게스트 소켓
+  ///////////////////////
+  
+  // 초대 보내고 방장 새로고침 또는 나가기 
+  // 
+  // 초대 보내고 게스트 새로고침 또는 나가기
+  //
+
+  
+
+////////////////////////////////chat -> game////////////////////////////////
+
 
   // 게임룽 생성 및 게임 속성들 초기화
   async createGameRoom(sockets: Socket[]) {
@@ -199,7 +256,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.gameRooms[roomName] = {
       sockets: sockets,
       maxScore: 11,
-      speedMode: 1,
+      speedMode: 0,
       timer: null,
       element: null,
       velocityX: this.gameConfig.velocityX,
@@ -210,7 +267,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.handleJoinRoom(sockets, roomName);
   }
 
-  // 방에서 나갈 때 공통으로 처리해야 하는 함수
+
 
   // 방에 들어갈 때 공통으로 처리해야 하는 함수
   handleJoinRoom(sockets: Socket[], roomName: string) {
@@ -338,19 +395,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       gameRoom.velocityX = velocityX < 0 ? velocityX - 0.01 : velocityX + 0.01;
       gameRoom.velocityY = velocityY < 0 ? velocityY - 0.01 : velocityY + 0.01;
     }
-    // 가속 모드
-    // if (gameRoom.velocityX > 0) {
-    //   gameRoom.velocityX += 0.008;
-    // } else {
-    //   gameRoom.velocityX -= 0.008;
-    // }
-    // if (gameRoom.velocityY > 0) {
-    //   gameRoom.velocityY += 0.004;
-    // } else {
-    //   gameRoom.velocityY -= 0.004;
-    // }
-
-
   }
 
   updatePadlePosition(status: number, paddle: Paddle) {
