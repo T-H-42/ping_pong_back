@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { User } from 'src/entity/user.entity';
-import { GameGateway } from 'src/gateway/game.gateway';
 import { GameRepository } from './game.repository';
 
 @Injectable()
@@ -12,7 +11,9 @@ export class GameService {
     const user1 = await User.findOne({ where: { game_sockid: socket1 } });
     const user2 = await User.findOne({ where: { game_sockid: socket2 } });
     if (!user1 || !user2) {
-      console.log('user 정보 없음');
+      console.log(socket1);
+      console.log(socket2);
+      console.log('왜 실패?');
       return;
     }
     else {

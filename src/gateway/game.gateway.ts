@@ -62,19 +62,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() nsp: Namespace;
 
   private gameConfig = config.get('game');
-
   private logger = new Logger('Gateway');
-  // User 배열을 담는 매칭 큐
+  // 매칭 큐 배열
   private matchQueue: Socket[] = [];
-
-
   // 게임 방들을 담는 배열
   private gameRooms: { [key: string]: GameInformation } = {};
+  // 소켓이 속한 룸네임 추출을 위한 맵
   private RoomConnectedSocket: Map<Socket, string> = new Map();
 
   // 채널 입장
   async handleConnection(@ConnectedSocket() socket: Socket) {
     this.logger.log(`Game 채널 connect 호출`);
+    console.log(socket);
     let payload;
     try {
       payload = await this.getPayload(socket);
@@ -92,39 +91,38 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
-    }
-    if (!payload) {
       return;
     }
-    await this.userService.disconnectGameSocket(payload.username);
-    this.matchQueue = await this.matchQueue.filter(item => item !== socket);
+    this.matchQueue = this.matchQueue.filter(item => item !== socket);
     this.handleAbnormalExit(socket, payload);
+    await this.userService.disconnectGameSocket(payload.username);
+    // this.userService.settingStatus(payload.username, 0);
   }
   
     // 매칭 큐에 유저를 넣는 함수
     @SubscribeMessage('ft_enter_match_queue')
     async enterMatchQueue(@ConnectedSocket() socket: Socket) {
       this.logger.log(`Game 채널 ft_enter_match_queue 호출`);
+      let payload;
       try {
-        const payload = await this.getPayload(socket);
-      } catch (err) {
-        this.logger.error('fail GameGateway enterMatchQueue', err);
+        payload = await this.getPayload(socket);
+      } catch (error) {
+        this.logger.error('fail GameGateway enter_match_queue', error);
+        return;
       }
-  
-      // 근데 이건 프론트가 막아줘야지 두번 누른다고 두번 넣어주기 있기?
-      // ft_exit_match_queue 를 아예 빼버려?
-      if (this.matchQueue.includes(socket)) {
-        console.log('이미 있음');
+      // 매칭 큐 들어온 상태로 매칭 잡기 프론트에서 못 막았을 경우
+      if (this.matchQueue.includes(socket))
         return { success: false };
-      }
       this.matchQueue.push(socket);
+
+      // 2명이면 매칭 큐에서 제거 게임 방 생성
       if (this.matchQueue.length === 2) {
-        const sockets = await this.matchQueue.splice(0, 2);
+        const sockets = this.matchQueue.splice(0, 2);
         await this.createGameRoom(sockets);
       }
       return { success: true };
     }
-  
+
     // 매칭 큐에서 유저를 빼는 함수
     @SubscribeMessage('ft_exit_match_queue')
     async exitMatchQueue(@ConnectedSocket() socket: Socket) {
@@ -133,22 +131,23 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { success: true };
     }
   
+  // 게임룸에 있을 때 비정상 종료한 경우 처리
   async handleAbnormalExit(socket: Socket, payload: any) {
     const roomName = this.RoomConnectedSocket.get(socket);
     if (roomName) {
-      console.log(roomName);
+      console.log('게임중 나감');
       let status;
+      const remainingSocket = this.gameRooms[roomName].sockets.find(item => item !== socket);
+      const winnerUser = await this.userService.getUserByGameSocketId(remainingSocket.id);
+      const loserUser = await this.userService.getUserByUserName(payload.username);
+      if (!winnerUser)
+        console.log(remainingSocket.id, 'socket.id로 유저 못찾음');
       if (this.gameRooms[roomName].timer) {
-        this.logger.log(`과감한 interval 삭제`);
-        await clearInterval(this.gameRooms[roomName].timer);
-        //탈주는 패배 처리
-        const winner = this.gameRooms[roomName].sockets.find(item => item !== socket);
-        const winnerUser = await this.userService.getUserByGameSocketId(winner.id);
-        const loserUser = await this.userService.getUserByUserName(payload.username);
+        clearInterval(this.gameRooms[roomName].timer);
         this.gameService.finishGame(winnerUser, loserUser);
         status = 2;
       } else {
-        this.logger.log(`setting room에서 나감`);
+        this.logger.log(`setting중 나감`);
         status = 1;
       }
       socket.to(roomName).emit('ft_enemy_leave_room', {
@@ -156,6 +155,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         status,
       });
       await this.handleLeaveRoom(this.gameRooms[roomName].sockets, roomName);
+      this.RoomConnectedSocket.delete(socket);
+      this.RoomConnectedSocket.delete(remainingSocket);
       delete this.gameRooms[roomName];
     }
   }
@@ -164,8 +165,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     sockets.forEach(async socket => {
       this.RoomConnectedSocket.delete(socket);
       socket.leave(roomName);
-      const payload = await this.getPayload(socket);
-      this.userService.settingStatus(payload.username, 1);
+      try {
+        const payload = await this.getPayload(socket);
+        // this.userService.settingStatus(payload.username, 1);
+      } catch(error) {
+        console.log(error);
+        return error;
+      }
     });
     delete this.gameRooms[roomName];
   }
@@ -174,20 +180,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @SubscribeMessage('ft_leave_setting_room')
     async handleLeaveSettingRoom(
       @ConnectedSocket() socket: Socket,
-      // @MessageBody() roomName: string,
       ) {
       this.logger.log(`Game 채널 ft_leave_setting_room 호출`);
-      // if(!this.gameRooms[roomName])
-      //   return ;
-      // const sockets = await this.gameRooms[roomName].sockets;
-      // 나간 유저 네임 추출
-      const payload = await this.getPayload(socket);
-      this.handleAbnormalExit(socket, payload);
-      // socket.to(roomName).emit('ft_enemy_leave_setting_room', {
-      //   username: payload.username,
-      //   access: true,
-      // });
-      // await this.handleLeaveRoom(sockets, roomName);
+      try {
+        const payload = await this.getPayload(socket);
+        this.handleAbnormalExit(socket, payload);
+      } catch (error) {
+        this.logger.error('fail GameGateway handleLeaveSettingRoom', error);
+        return error;
+      }
     }
 
   // 게임룽 생성 및 게임 속성들 초기화
@@ -198,7 +199,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.gameRooms[roomName] = {
       sockets: sockets,
       maxScore: 11,
-      speedMode: 0,
+      speedMode: 1,
       timer: null,
       element: null,
       velocityX: this.gameConfig.velocityX,
@@ -218,9 +219,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.RoomConnectedSocket.set(socket, roomName);
       const isOwner = sockets.indexOf(socket) === 0 ? true : false;
       socket.join(roomName);
-      const payload = await this.getPayload(socket);
-      this.userService.settingStatus(payload.username, 3);
+      try {
+        const payload = await this.getPayload(socket);
+        this.userService.settingStatus(payload.username, 3);
+      } catch(error) {
+        console.log(error);
+        return error;
+      }
       console.log('roomName', roomName);
+      console.log('socket.id', socket.id);
       socket.emit('ft_match_success', {
         success: true,
         roomName,
@@ -290,7 +297,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async positionUpdate(roomName: string) {
     // ball의 위치를 업데이트
     const gameRoom = this.gameRooms[roomName];
-
+    if (!gameRoom) return;
     this.ballUpdate(gameRoom);
     this.ballCollision(gameRoom);
 
@@ -318,8 +325,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   ballUpdate(gameRoom: GameInformation) {
-    // if (!gameRoom.element || !gameRoom.velocityX || !gameRoom.velocityY || !gameRoom.leftPaddleStatus || !gameRoom.rightPaddleStatus )
-    //   console.log("gameRoom!!=========\n", gameRoom);
     const { element, velocityX, velocityY, leftPaddleStatus, rightPaddleStatus } = gameRoom;
     const { ball } = element;
   
@@ -471,18 +476,3 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 }
-
-
-// const deltaY = ball.y - (rightPaddle.y + rightPaddle.height / 2);
-// this.gameRooms[roomName].velocityX = -this.gameRooms[roomName].velocityX;
-// this.gameRooms[roomName].velocityY = deltaY * 0.1;
-// 위 수식이 의미하는게 무엇이지?
-// deltaY는 ball이 paddle의 중심에서 얼마나 떨어져 있는지를 나타내는 값이다.
-// deltaY가 0이면 paddle의 중심에 부딪힌 것이고, deltaY가 양수면 paddle의 아래쪽에 부딪힌 것이고, 음수면 paddle의 위쪽에 부딪힌 것이다.
-// deltaY가 0이면 ball의 velocityY는 0이 되고, deltaY가 양수면 ball의 velocityY는 양수가 되고, 음수면 ball의 velocityY는 음수가 된다.
-// 즉, deltaY가 0이면 ball의 velocityY는 0이 되고, deltaY가 양수면 ball의 velocityY는 양수가 되고, 음수면 ball의 velocityY는 음수가 된다.
-
-// deltaY 에 0.1을 곱하는것은 어떤 의미일까?
-// deltaY에 0.1을 곱하는 것은 ball의 velocityY를 paddle의 중심에서 멀어질수록 더 크게 만들어서 ball이 paddle의 중심에서 멀어질수록 더 빠르게 움직이게 하는 것이다.
-// 즉, paddle의 중심에서 멀어질수록 더 빠르게 움직이게 하는 것이다.
-

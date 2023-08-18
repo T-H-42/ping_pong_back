@@ -10,9 +10,6 @@ export class GameRepository extends Repository<Game> {
   }
 
   async createGame(user1: User, user2: User) {
-    // console.log('여긴가?');
-    // await this.query(`insert into game (winner, loser, finished) values (${user1.id}, ${user2.id}, false)`);
-    // console.log('여기맞네');
     this.query(`
       insert into game (winner, loser, finished)
       values (${user1.id}, ${user2.id}, false)`);
@@ -20,16 +17,18 @@ export class GameRepository extends Repository<Game> {
   }
 
   async getUserByGameSockId(game_sockid: string): Promise<User> {
-    const [user] = await this.query(
-      `select * from "user" where game_sockid = '${game_sockid}'`,
-    );
+    const user = User.findOne({ where: { game_sockid } });
+    // const [user] = await this.query(
+    //   `select * from "user" where game_sockid = '${game_sockid}'`,
+    // );
     return user;
   }
 
   async finishGame(winner: User, loser: User) {
     if (!winner || !loser) {
       console.log('user 정보 없음');
-      //finished가 false인 게임 삭제
+      // User가 NULL 또는 undefined인 경우를 여기서 확인하는 이유
+      // finished가 false인 게임 삭제를 위해
       await this.delete({ finished: false });
       return;
     }
@@ -37,7 +36,6 @@ export class GameRepository extends Repository<Game> {
       select game_id from game
       where (winner = ${winner.id} or loser = ${winner.id}) and finished = false`);
     const game_id = result[0].game_id;
-    // 나중에 시간 추가
     const playedTime = new Date().toISOString();
     const query = `
       update game
