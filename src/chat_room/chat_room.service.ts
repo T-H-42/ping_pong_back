@@ -246,10 +246,10 @@ export class ChatRoomService {
     
     async isValidPassword(roomName:string, password : string)
     {
-        const q = `select * from "chat_room" where index='${roomName}';`;
-        const check =  await this.chatRoomRepository.query(q);
-        if (check.length === 0)
-            return false;
+        // const q = `select * from "chat_room" where index='${roomName}';`;
+        // const check =  await this.chatRoomRepository.query(q);
+        // if (check.length === 0)
+        //     return false;
         const query = `select "password" from "chat_room" where index='${roomName}';`;
         const obj = await this.chatRoomRepository.query(query);
         if (await bcrypy.compare(password, obj[0].password))
@@ -350,6 +350,14 @@ export class ChatRoomService {
         return (ret);
     }
     
+    async checkInRoom(targetUserId : number)
+    {
+        const query = `select * from "chat_user" where "user_id" = ${targetUserId};`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length===0)
+            return ;
+        return ret[0].index;
+    }
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.

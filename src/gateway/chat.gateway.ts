@@ -111,7 +111,7 @@ export class ChatGateway
     const userId = requestUser.id;
     //Muted이면 즉시 리턴만해서 처리 -> 아니면 관련 데이터 모두 삭제.
     if (await this.chatRoomService.isMuted(roomName, userId))
-      return {success : false};
+      return {username: `${payload.username}`, success : false, faillog : `현재 음소거 상태입니다.`};
     await this.chatRoomService.saveMessage(roomName, userId, message);
     const userBlockedMeList =  await this.chatRoomService.findWhoBlockedMe(userId,roomName);//block을 제외한 유저에게 보내기
     // console.log("-----------in ft_message find user Who Blocked Me -----------");
@@ -121,9 +121,10 @@ export class ChatGateway
     await socket.broadcast.except(userBlockedMeList).to(roomName).emit('ft_message', {
       username: `${payload.username}`,
       message,
+      success : true,
+      faillog : ``
     });
-
-    return { username: payload.username, message };
+    return { username: payload.username, message, success : true, faillog : `` };
   }
 
   // 채팅방(룸) 목록 반환
@@ -141,10 +142,10 @@ export class ChatGateway
     @MessageBody() _Data:string /////안에 숫자가 있는데, 이거는 어캐하지.... roomName, status, password, limitUser
   ) {
     if (_Data["roomName"].length === 0)
-      return { success: false, payload: `채팅방 이름을 지정해야합니다.` };
+      return { success: false, faillog: `채팅방 이름을 지정해야합니다.` };
     if (_Data["limitUser"] <1 || _Data["limitUser"] > 8)
     {
-      return { success: false, payload: `제한인원의 범위는 1~8 입니다.` };
+      return { success: false, faillog: `제한인원의 범위는 1~8 입니다.` };
     }
     let payload;
     try {
@@ -176,7 +177,7 @@ export class ChatGateway
       ////////////////////
     } else {
       console.log("testsetst");
-      return { success: false, payload: `${_Data["roomName"]} 방이 이미 존재합니다.` };
+      return { success: false, faillog: `${_Data["roomName"]} 방이 이미 존재합니다.` };
     }
     
     //validateSpaceInRoom()
@@ -191,7 +192,7 @@ export class ChatGateway
     socket.broadcast.emit("room-list",list);
     // this.nsp.emit('create-room', {index: _Data["roomName"], limit_user:_Data["limitUser"],room_stat: _Data["status"]});
     // socket.emit('create-room', _Data["roomName"]);
-    return { success: true, payload: _Data["roomName"] };
+    return { success: true, faillog: _Data["roomName"] };
   }
 
   // 채팅방(룸) 들어가기
@@ -205,9 +206,10 @@ export class ChatGateway
     console.log(_Data);
     console.log("=======in join room======");
 
-    
+    if (await this.chatRoomService.isEmptyRoom(_Data["roomName"]) === true)
+      return {success : false, faillog : `존재 하지 않는 방입니다.`};
     if (await this.chatRoomService.isValidPassword(_Data["roomName"], _Data["password"]) === false) ///create-room 시 비어있는 password와 양식이 같도록!
-      return { success: false }; ///password err _Data["roomName"]
+      return { success: false, faillog : `비밀번호가 일치하지 않습니다.`}; ///password err _Data["roomName"]
     this.logger.log('채팅방 입장하기 호출: ', socket.id);
     let payload;
     try {
@@ -223,13 +225,11 @@ export class ChatGateway
     const userId = requestUser.id;
     if ((await this.chatRoomService.isBanedUser(userId, _Data["roomName"])) === true) //ban되지 않은 경우만 넣기
     {
-      console.log("is Ban?");
-      return { success: false }; ///banedUser;
+      return { success: false,faillog : `당신은 접근 금지된 유저입니다.`}; ///banedUser;
     }
     if (await this.chatRoomService.validateSpaceInRoom(_Data["roomName"])===false) //공간 없으면
     {
-      console.log("is validate space?");
-      return { success: false }; ///not space
+      return { success: false, faillog : `방이 이미 가득 찼습니다.` }; ///not space
     }
     if ((await this.chatRoomService.isUserInRoom(userId, _Data["roomName"])) === false)
       await this.chatRoomService.joinUserToRoom(userId, _Data["roomName"], 0); //이미 유저 네임이 있으면 만들지 않음
@@ -243,7 +243,7 @@ export class ChatGateway
     });
     const userList = await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]);
     socket.broadcast.to(_Data["roomName"]).emit("ft_getUserListInRoom", {userList});
-    return { success: true }; //
+    return { success: true, faillog : `` }; //
   }
 
   /*
@@ -311,13 +311,30 @@ export class ChatGateway
       payload = await this.getPayload(socket);
     } catch (error) {
       //나중에 throw 로 교체
-      return { success: false };
+      return { success: false, faillog : `Token ERR!` };
     }
     let arr = [];
     arr.push(userName);
     arr.push(payload.username);
     arr.sort();
     let roomName = arr.join();
+    ////targetUser으ㅣ 스스테테이이터터스스가  3이상이면 쳐쳐냄냄.
+    const targetUser = await this.userService.getUserByUserName(
+      userName,
+      );
+      if (targetUser.status===0)
+        return { success: false, faillog : `${targetUser.username}은 오프라인 입니다.` }; ///3이면 채팅, 4면 게임
+      if (targetUser.status===3)
+        return { success: false, faillog : `${targetUser.username}은 채팅 중입니다.` }; ///3이면 채팅, 4면 게임
+      if (targetUser.status===4)
+        return { success: false, faillog : `${targetUser.username}은 게임 중입니다.` }; ///3이면 채팅, 4면 게임
+      if (targetUser.status===2)//// 2인 경경우  chat_user에서 targetUserId 찾아서 나온 값이 roomName이랑 일치하지 않으면 쳐냄
+      {
+        if (await this.chatRoomService.checkInRoom(targetUser.id) !== roomName)
+          return { success: false, faillog : `${targetUser.username}은 다른 사람과 DM중입니다.` };
+      }
+
+    //// 1인 경경우  진진행행
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
@@ -334,7 +351,7 @@ export class ChatGateway
     socket.join(roomName);
     await this.userService.settingStatus(payload.username, 2);
     console.log('========???여기까지???');
-    return { success: true, index: roomName };
+    return { success: true, index: roomName, faillog : ``};
   }
 
   @SubscribeMessage('leave-dm')
@@ -467,8 +484,8 @@ export class ChatGateway
       );
       const targetUserId = targetUser.id;
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
-    if (targetUserRight >= 1) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+      return { success : false, faillog : `방의 소유자에 대해서는 처리할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
     await this.chatRoomService.setAdmin(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`,
@@ -523,12 +540,13 @@ export class ChatGateway
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+      return { success : false, faillog:`방의 소유자에 대해서는 처리할 수 없습니다.`}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     
     const banedRet = await this.chatRoomService.setBan(_Data["roomName"], targetUserId);
     if (banedRet===false)
       return {
-        success : false ///이미 blocked인 경우
+        success : false, ///이미 ban인 경우
+        faillog : `해당 유저는 이미 금지 상태입니다.`
       };
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`,
@@ -566,7 +584,7 @@ export class ChatGateway
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+      return { success : false, faillog:`방의 소유자에 대해서는 처리할 수 없습니다.`}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
@@ -575,7 +593,8 @@ export class ChatGateway
     const blockedRet = await this.chatRoomService.setBlock(_Data["roomName"], targetUserId, userId);
     if (blockedRet===false)
       return {
-        success : false ///이미 blocked인 경우
+        success : false, ///이미 blocked인 경우
+        faillog : `이미 해당 유저를 금지하였습니다.`
       };
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`,
@@ -637,7 +656,7 @@ export class ChatGateway
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+      return { success : false, faillog: `방의 소유자에 대해서는 변경할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`, //
@@ -648,11 +667,20 @@ export class ChatGateway
     //   username: `${payload.username}(Admin)`,
     //   message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     // };
+    const targetSock = await this.userService.getChatSocketByUserName(_Data["targetUser"]);
+      let targetSocks = [];
+      targetSocks.push(targetSock[0].chat_sockid);
     socket.emit('ft_message', {
       username: `${payload.username}(Admin)`,
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     });
-    //roomName에 emit, 자신에 return
+    socket.broadcast.to(targetSocks).emit('ft_mute',{
+      username: `${payload.username}(Admin)`,
+      message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
+    });
+
+    //roomName에 emit, 자신에 return ->>> 이거 상대방에서 ft_mute_check이 나와야 한다. ... MuteCheck가 아마 프론트에서는 지금 듣고(On은 없을 것으로 예상) 있지 않을 것 같은데, 그걸 들은 클라이언트가ft_mute_check을 호출 할 수 있도록!
+    //
   }
 
   
@@ -699,6 +727,7 @@ export class ChatGateway
       username: `${payload.username}(Admin)`,
       message: `${unlockedUsers}님이 현재 채팅방에서 음소거 해제되었습니다.`,
     });
+    return {success : 2};
   }
   
   @SubscribeMessage('ft_kick')
@@ -722,7 +751,7 @@ export class ChatGateway
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
+      return { success : false, faillog : `방의 소유자에 대해서는 처리할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     ///당사자에게만 쏴주면, 이걸 받아서 처리?
     let targetList = [];
     // targetList.push(target[0].chat_sockid);
@@ -766,7 +795,7 @@ export class ChatGateway
     const userId = user.id;
     const targetUserId = recvUser.id;
     if (await this.friendService.isFriend(userId,targetUserId)===true)
-      return {success : false};
+      return {success : false, faillog : `이미 ${recvUser.username}님과 친구입니다.`};
     await this.friendService.addFriend(userId,targetUserId);
     let targetList = [];
     targetList.push(recvUser.chat_sockid);
@@ -854,7 +883,10 @@ export class ChatGateway
       _Data["targetUser"],
       );
     if (targetUser.status != 1)
-      return {success : false};
+    {
+      let log = ["오프라인","가능","다른 유저와 DM 중", "채팅 중", "게임 중"];
+      return {success : false, faillog : `해당 유저가 ${log[targetUser.status]} 입니다.`};
+    }
     let targetList = [];
     console.log('--------------');
     console.log(_Data);
