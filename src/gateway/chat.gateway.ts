@@ -62,9 +62,10 @@ export class ChatGateway
 
   ////////////////////////////////////// - channel dis/connection - start //////////////////////////////////////
   async handleConnection(@ConnectedSocket() socket: Socket) {
+    let payload; 
     try {
+      payload = await this.getPayload(socket);
       console.log('handle_connn!!! in chat');
-      const payload = await this.getPayload(socket);
       await this.userService.connectChatSocket(payload.username, socket.id);
       this.logger.log(
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
@@ -73,13 +74,23 @@ export class ChatGateway
       this.logger.error('1. validate_token fail in chat', error);
       // socket.disconnect();
     }
+    const socketList = await this.friendService.getFriendChatSocket(
+      payload.username,
+    );
+    console.log("-----socklist----");
+    console.log(socketList);
+    socket.broadcast.to(socketList).emit('ft_trigger', {
+      success:true,
+    });
+    console.log("---------");
   }
 
   // 채널(네임스페이스) 탈주
   async handleDisconnect(@ConnectedSocket() socket: Socket) { //////////ㅇㅕ기서도 관관련  데데이이터  모모두  지지워워야야함함.
     this.logger.log('chat 채널 Disconnect 호출');
+    let payload;
     try {
-      const payload = await this.getPayload(socket);
+      payload = await this.getPayload(socket);
       await this.userService.disconnectChatSocket(payload.username);
       /////////여기서 chat 관련 데이터 다 삭제
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
@@ -87,6 +98,17 @@ export class ChatGateway
       console.log('get payload err in chatDisconnect');
       socket.disconnect();
     }
+    const socketList = await this.friendService.getFriendChatSocket(
+      payload.username,
+    );
+    console.log("-----socklist----");
+    console.log(socketList);
+    console.log("---------");
+
+    socket.broadcast.to(socketList).emit('ft_trigger', {
+      success:true
+    });
+    
   }
   ////////////////////////////////////// - channel dis/connection - end //////////////////////////////////////
 

@@ -50,6 +50,30 @@ export class FriendService {
     return friendSocketList;
     }
 
+    async getFriendChatSocket(username: string): Promise<string[]> {
+      // const user = await this.friendRepository.findOne({
+      //   where: {
+      //  username
+      //   }})
+      const user = await this.friendRepository.query(`select * from "user" where username='${username}'`);
+      if (!user)
+      {
+        console.log("???????????????????????????????????????");
+        console.log("???????????????????????????????????????");
+      }
+      const friend_list = await this.findFriendList(user[0]);
+    
+      const friendSocketList:string[] = [];
+      friend_list.map((friend) => {
+        // console.log(friend);
+        if (friend.chat_sockid !== null) {
+        friendSocketList.push(friend.chat_sockid);
+        }
+      });
+      // console.log(friendSocketList);
+      return friendSocketList;
+      }
+
     async isFriend(userId: number,targetUserId: number)
     {
       if (userId === targetUserId)
