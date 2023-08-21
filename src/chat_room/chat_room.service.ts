@@ -329,7 +329,7 @@ export class ChatRoomService {
         //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
         
     }
-    
+
     async checkMuteUnlock(roomName : string)
     {
         //해제된 녀석들의 chatSocket 던져주기
@@ -368,6 +368,30 @@ export class ChatRoomService {
             return false;
         return true;
     }
+
+    async updateRoomPassword(userId : number, roomName : string, hashedPassword : string)
+    {
+        const query = `update "chat_room" set "password"='${hashedPassword}',"room_stat"=1 where "index"='${roomName}' and "owner_id" = ${userId};`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    async deleteRoomPassword(userId : number, roomName : string)
+    {
+        const hashedPassword = await this.hashPassword('');
+        const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = '${roomName}' and "owner_id" = ${userId};`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    // async preventInjection(userInput : string)
+    // {
+    //     var input = userInput.split(' ');
+    //     input.map((i)=>{
+    //         for (var j in i)
+    //         {
+
+    //         }
+    //     });
+    // }
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.

@@ -111,12 +111,9 @@ export class ChatGateway
     const socketList = await this.friendService.getFriendChatSocket(
       payload.username,
     );
-    console.log("-----socklist----");
-    console.log(socketList);
     socket.broadcast.to(socketList).emit('ft_trigger', {
       success:true,
     });
-    console.log("---------");
     socket.emit('ft_tomain', {
       success:true,
     });
@@ -141,7 +138,9 @@ export class ChatGateway
     console.log("-----socklist----");
     console.log(socketList);
     console.log("---------");
-
+    
+    // await this.chatRoomService.deleteChatInformation(roomName);
+    
     socket.broadcast.to(socketList).emit('ft_trigger', {
       success:true
     });
@@ -372,16 +371,22 @@ export class ChatGateway
       //나중에 throw 로 교체
       return { success: false, faillog : `Token ERR!` };
     }
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    );
+    const targetUser = await this.userService.getUserByUserName(
+      userName,
+    );
     let arr = [];
-    arr.push(userName);
-    arr.push(payload.username);
+    arr.push(targetUser.intra_id);
+    arr.push(requestUser.intra_id);
     arr.sort();
     let roomName = arr.join();
 
+    
     ////targetUser으ㅣ 스스테테이이터터스스가  3이상이면 쳐쳐냄냄.
-    const targetUser = await this.userService.getUserByUserName(
-      userName,
-      );
+      /*
+      ->>>>>> 다른 행위중일 때 막았으나, Alert까지 던지도록 수정했으므로 삭제!
       // if (targetUser.status===0)
       //   return { success: false, faillog : `${targetUser.username}은 오프라인 입니다.` }; ///3이면 채팅, 4면 게임
       // if (targetUser.status===3)
@@ -393,47 +398,21 @@ export class ChatGateway
       //   if (await this.chatRoomService.checkInRoom(targetUser.id) !== roomName)
       //     return { success: false, faillog : `${targetUser.username}은 다른 사람과 DM중입니다.` };
       // }
-
-    //// 1인 경경우  진진행행
-    const requestUser = await this.userService.getUserByUserName(
-      payload.username,
-    ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
+      */
+     // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
-    console.log('========');
-    console.log(userId, roomName);
-    console.log('========');
     if (isExist === false) {
       await this.chatRoomService.createDmRoom(userId, roomName);
     }
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) === false)
       await this.chatRoomService.joinUserToRoom(userId, roomName, 0); //이미 유저 네임이 있으면 만들지 않음
-    /*
-    let temp : Map<string,number> = new Map();
-      temp.set(`${payload.username}`,1);
-      // this.dm
-      this.dmAlertMap.set(receiver,temp);
-      console.log("test alert");
-      console.log("---------receiver",receiver);
-      console.log("---------in temp",temp.get(`${payload.username}`)); //temp["insjang"]);
-      console.log("---------in temp",this.dmAlertMap.get(`${receiver}`)); //temp["insjang"]);
-      console.log("test alert");
-      console.log(this.dmAlertMap.has(`${receiver}`));
-      console.log(this.dmAlertMap.has('test'));
-      
-      //join-dm 시
-      // dmAlertMap["userName"].delete("targetUser"(상대방));
-      
-      */
-    ////////////// test alert
+
     if (this.dmAlertMap.has(`${payload.username}`) && this.dmAlertMap.get(`${payload.username}`).has(`${userName}`)===true)
       this.dmAlertMap.get(`${payload.username}`).delete(`${userName}`);
-    ////////////// test alert
-    
     
     socket.join(roomName);
     await this.userService.settingStatus(payload.username, 2);
-    console.log('========???여기까지???');
     return { success: true, index: roomName, faillog : ``};
   }
 
@@ -460,7 +439,7 @@ export class ChatGateway
     await this.userService.settingStatus(payload.username,1);
     socket.broadcast.to(roomName).emit('ft_dm', {
       username: `${payload.username}`,
-      message: `님이 ${roomName}에서 나갔습니다`,
+      message: `님이 DM에서 나갔습니다`,
     });
     return { success: true };
   }
@@ -978,12 +957,6 @@ export class ChatGateway
     }
     const user = await this.userService.getUserByUserName(payload.username);
     let ret = await this.friendService.findFriendList(user);
-    console.log("------------for test alert origin------------");
-    console.log(ret);
-
-    console.log("------------for test alert origin------------");
-
-    console.log("------------for test alert!------------");
     // console.log(ret);
     let _return = [];
     ret.map((i) => {
@@ -998,8 +971,6 @@ export class ChatGateway
                 _return.push(i.chat_sockid);//socketid
         });
     */
-    console.log(_return);
-    console.log("------------for test alert!------------");
     socket.emit('ft_getfriendlist', _return);//////_return으로 교교체체할  예예정정 <-await this.friendService.findFriendList(user)
     return (_return);//////_return
   }
@@ -1042,6 +1013,75 @@ export class ChatGateway
     return {success : true};
   }
 
+  @SubscribeMessage('ft_changeroompassword') ///상대에 대해 채팅방으로 초대버튼 누른 경우
+  async changeRoomPassword(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string, 
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('ft_changeroompassword 에러');
+    }
+
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    );
+    if (_Data["password"] =='')
+    {
+      return { success: false, faillog: `비밀 번호를 입력해주십시오.` };
+    }
+    const userId = requestUser.id;
+    const isExist = await this.chatRoomService.isExistRoom(_Data["roomName"]); // 방이 있는지 DB에 유효성 체크
+    if (isExist === true) {
+      ////////////////////
+      const hashedPassword = await this.chatRoomService.hashPassword(_Data["password"]);
+      // await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,_Data["password"], _Data["limitUser"]);
+      await this.chatRoomService.updateRoomPassword(userId, _Data["roomName"],hashedPassword);
+      ////////////////////
+    } else {
+      return { success: false, faillog: `${_Data["roomName"]} 방이 없습니다.` };
+    }
+    const list = await this.chatRoomService.getRoomList();
+    socket.broadcast.emit("room-list",list);
+    return { success: true, faillog: `비밀번호가 변경되었습니다.`};
+  }
+
+  @SubscribeMessage('ft_deleteroompassword') ///상대에 대해 채팅방으로 초대버튼 누른 경우
+  async deleteRoomPassword(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() _Data: string,  ///roomName만 있으면 됍니다.
+  )
+  {
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+      this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
+    } catch (error) {
+      console.log('ft_deleteroompassword 에러');
+    }
+
+    const requestUser = await this.userService.getUserByUserName(
+      payload.username,
+    );
+
+    const userId = requestUser.id;
+    const isExist = await this.chatRoomService.isExistRoom(_Data["roomName"]); // 방이 있는지 DB에 유효성 체크
+    if (isExist === true) {
+      ////////////////////
+      // await this.chatRoomService.createChatRoom(userId, _Data["roomName"], _Data["status"] ,_Data["password"], _Data["limitUser"]);
+      await this.chatRoomService.deleteRoomPassword(userId, _Data["roomName"]);
+      ////////////////////
+    } else {
+      return { success: false, faillog: `${_Data["roomName"]} 방이 없습니다.` };
+    }
+    const list = await this.chatRoomService.getRoomList();
+    socket.broadcast.emit("room-list",list);
+    return { success: true, faillog: `비밀번호가 삭제되었습니다.`};
+  }
 
   /*
                     CHAT  TEST CASE!
