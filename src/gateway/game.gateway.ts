@@ -80,6 +80,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       this.logger.error('fail GameGateway handleConnection', error);
     }
+    socket.emit('ft_tomain', {});
   }
 
   // 채널 퇴장
@@ -150,12 +151,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!winnerUser) {
         console.log(remainingUsername, ' 얘도 나간듯?');
       }
-      if (!this.gameRooms[roomName])
+      if (!this.gameRooms[roomName]) {
+        console.log('게임방 없음 아마 front에러');
         return;
+      }
       if (this.gameRooms[roomName].timer) {
         console.log('게임중 나감');
         clearInterval(this.gameRooms[roomName].timer);
-        this.gameService.finishGame(winnerUser, loserUser);
+        await this.userService.leaderScoreUpdate(winnerUser, loserUser);
+        await this.gameService.finishGame(winnerUser, loserUser);
         status = 2;
       } else {
         this.logger.log(`setting중 나감`);
@@ -172,11 +176,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleLeaveRoom(users: string[], roomName: string) {
     users.forEach(async username => {
       const user = await this.userService.getUserByUserName(username);
+      if (user.socketid) {
+        this.userService.settingStatus(username, 1);
+      }
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
         socket.leave(roomName);
       this.RoomConnectedSocket.delete(username);
-      // user status 변경 추가 예정
     });
     delete this.gameRooms[roomName];
   }
@@ -198,36 +204,36 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 ////////////////////////////////chat -> game////////////////////////////////
   // 게임초대
   // 방장 -> b 방장 소켓, 게스트 이름
-  // async handleInviteGame(socket: Socket, ownerName: string, guestName: string) {
-  //   this.logger.log(`Game 채널 handleInviteGame 호출`);
-  //   const guestUser = await this.userService.getUserByUserName(guestName);
-  //   // 유저가 온라인이 아니면? return false
-  //   if (guestUser.status === 0)
-  //     return false;
-  //   // 초대 알림
-  //   socket.to(guestUser.game_sockid).emit('ft_invite_game_from_chat', {
-  //     ownerName,
-  //   });
-  //   return true;
-  // }
+  @SubscribeMessage('ft_invite_game')
+  async handleInviteGame(@ConnectedSocket() socket: Socket, ownerName: string, guestName: string) {
+    this.logger.log(`Game 채널 handleInviteGame 호출`);
+    const guestUser = await this.userService.getUserByUserName(guestName);
+    // 유저가 온라인이 아니면? return false
+    if (guestUser.status === 0)
+      return false;
+    // 초대 알림
+    socket.to(guestUser.game_sockid).emit('ft_invite_game_from_chat', {
+      ownerName,
+    });
+    return true;
+  }
 
-  // // F -> B 수락 거절 결과
-  // @SubscribeMessage('ft_invite_result')
-  // async handleInviteResult(socket: Socket, ownerName: string, accept: boolean) {
-  //   // 초대 수락 시
-  //   if (accept) {
-  //     const ownerUser = await this.userService.getUserByUserName(ownerName);
-  //     // 방장이 나가있다면?
-  //     if (!ownerUser || (ownerUser.status !== 1 && ownerUser.status !== 3))
-  //       return false;
-  //     const ownerSokcet = this.nsp.sockets.get(ownerUser.game_sockid);
-  //     const sockets = [ownerSokcet, socket];
-  //     await this.createGameRoom(sockets);
-  //     }
-  //   else {
-  //     return false;
-  //   }
-  // }
+  // F -> B 수락 거절 결과
+  @SubscribeMessage('ft_invite_result')
+  async handleInviteResult(ownerName: string, guestName: string, accept: boolean) {
+    // 초대 수락 시
+    if (accept) {
+      const ownerUser = await this.userService.getUserByUserName(ownerName);
+      // 방장이 나가있다면?
+      if (!ownerUser || (ownerUser.status !== 1 && ownerUser.status !== 3))
+        return false;
+      const users = [ownerName, guestName];
+      await this.createGameRoom(users);
+      }
+    else {
+      return false;
+    }
+  }
   
   // // 초대, 수락으로 인한 방 생성
   // @SubscribeMessage('ft_invite_game_from_chat') //ㅁㅏ으ㅁ에 안안드드시시면  바바꿔꿔주주세세요요~ -> 채팅방 프론트에서 "게임으로 초대" 버튼 누른 경우 호출됨. (FE에서 emit!)
@@ -279,6 +285,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.RoomConnectedSocket.set(username, roomName);
       const user = await this.userService.getUserByUserName(username);
       const socket = this.nsp.sockets.get(user.game_sockid);
+      if (!socket) {
+        console.log('socket 왜 null?');
+        return;
+      }
       const isOwner = users.indexOf(username) === 0 ? true : false;
       socket.join(roomName);
       this.userService.settingStatus(username, 3);
@@ -318,13 +328,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('ft_game_ready')
   handleGameReady(
     @ConnectedSocket() socket: Socket,
-    @MessageBody() roomName: string,) {
+    @MessageBody() roomName: string) {
     this.logger.log(`Game 채널 ft_game_ready 호출`);
-    console.log('roomName', roomName);
+    // console.log('roomName',roomName[0]);
+    // console.log('guestReady',roomName[1]);
     socket.to(roomName).emit('ft_game_ready_success', {
-      success: true,
+      roomName,
     })
   }
+
 
   // ft_game_play 이벤트를 받으면 게임 시작 , 한번만 실행 되어야 함
   // 게임 시작
@@ -377,6 +389,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: IPaddleMove,
   ) {
     const gameRoom = this.gameRooms[data.roomName];
+    if (!gameRoom) {
+      console.log('paddle move 그만 보내');
+      return ;
+    }
     data.isOwner ? gameRoom.leftPaddleStatus = data.paddleStatus : gameRoom.rightPaddleStatus = data.paddleStatus;
   }
 
@@ -472,6 +488,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async finishGame(gameRoom: GameInformation, roomName: string) {
+    console.log('finishGame');
     await clearInterval(gameRoom.timer);
     const winnerUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
     const loserUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];

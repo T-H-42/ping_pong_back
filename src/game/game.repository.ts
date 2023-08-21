@@ -33,8 +33,8 @@ export class GameRepository extends Repository<Game> {
       return;
     }
     const result = await this.query(`
-      select game_id from game
-      where (winner = ${winner.id} or loser = ${winner.id}) and finished = false`);
+    select game_id from game
+    where (winner = ${winner.id} or loser = ${winner.id}) and finished = false`);
     const game_id = result[0].game_id;
     const playedTime = new Date().toISOString();
     const query = `
