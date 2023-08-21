@@ -23,7 +23,7 @@ export class FriendService {
     const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
     where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
 
-    const result = await this.friendRepository.query(query);
+    let result = await this.friendRepository.query(query);
     return result;
     }
     async getFriendSocket(username: string): Promise<string[]> {
@@ -84,6 +84,19 @@ export class FriendService {
       const query2 = `select * from "friend" where "accecpt"=true and "sendIdId"=${targetUserId} and "recvIdId"=${userId};`;
       const ret2 = await this.friendRepository.query(query2);
       if (ret1.length === 0 && ret2.length ===0)
+        return false;
+      return true;
+    }
+    async isAlreadyFriendReq(userId: number,targetUserId: number)
+    {
+      if (userId === targetUserId)
+        return true;
+      const query1 = `select * from "friend" where "accecpt"=false and "sendIdId"=${userId} and "recvIdId"=${targetUserId};`;
+      const ret1 = await await this.friendRepository.query(query1);
+      const query2 = `select * from "friend" where "accecpt"=false and "sendIdId"=${targetUserId} and "recvIdId"=${userId};`;
+      const ret2 = await this.friendRepository.query(query2);
+
+      if (ret1.length === 0 && ret2.length === 0)
         return false;
       return true;
     }

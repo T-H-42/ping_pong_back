@@ -43,25 +43,19 @@ export class UserController {
   }
 
   @Post('/signin')
-  signIn(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
+  async signIn(@Body(ValidationPipe) loginDto: LoginDto, @Res() res: Response) {
     console.log('signin 프로토콜 start');
     return this.userService.signIn(loginDto, res);
   }
 
   @Post('/certificate')
-  certificateUser(
+  async certificateUser(
     @Body() certificateDto: CertificateDto,
     @Res() res: Response,
   ) {
     console.log('test_certificate');
     return this.userService.certificateUser(certificateDto, res);
   }
-
-  // @Get('/allfriend')
-  // @UseGuards(AuthGuard())
-  // getAllFriend(@GetUser() user: User): Promise<User[]> {
-  //   return this.userService.findFriendList(user);
-  // }
 
   @Get('/profile')
   @UseGuards(AuthGuard())

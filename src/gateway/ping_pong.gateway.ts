@@ -39,6 +39,7 @@ export class PingPongGateway
     try {
       this.logger.log('====ping_nsp_입장====');
       const payload = await this.getPayload(socket);
+      console.log(payload);
       await this.userService.connectPingPongSocket(payload.username, socket.id);
       const socketList = await this.friendService.getFriendSocket(
         payload.username,

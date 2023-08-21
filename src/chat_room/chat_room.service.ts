@@ -325,10 +325,11 @@ export class ChatRoomService {
         // const query = `update "chat_user" set "mute_end_time" = "NOW()+" , ;`;
         const query = `update "chat_user" set "mute_end_time" = NOW()+(1 || 'minutes')::interval where "user_id" = ${targetUserId}`; //10분 증가해서 저장!
         await this.chatRoomRepository.query(query);
+        return true;
         //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
         
     }
-
+    
     async checkMuteUnlock(roomName : string)
     {
         //해제된 녀석들의 chatSocket 던져주기
@@ -357,6 +358,15 @@ export class ChatRoomService {
         if (ret.length===0)
             return ;
         return ret[0].index;
+    }
+
+    async isUserInDM(receiverId: number, roomName :string)
+    {
+        const query = `select * from "chat_user" where "index" = '${roomName}' and "user_id" = ${receiverId};`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length===0)
+            return false;
+        return true;
     }
     
     /*

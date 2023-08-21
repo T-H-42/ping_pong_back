@@ -23,7 +23,40 @@ interface MessagePayload {
   message: string;
   receiver: string;
 }
+// let dmAlertMap = new Map<string, Map<string, number>>(); //new 키워드 안에 없음 -> test 필요
+/*
+//ft-dm 시
+dmAlertMap.set("TargetUser",("userName",1)) targetUser의 키값에 내가 알림을 주는 형식
 
+//join-dm 시
+dmAlertMap["userName"].delete("targetUser"(상대방));
+
+//getallfriend 호출 시
+front에 담아서 같이 주는 형국으로!
+getallfriend내부의 객체에 key:val 하나 더 더할 수 있는지 확인 필요.
+frine
+
+if (dmAlertMap["userName"].has("friendName") === true)
+{
+  alert:true 추가
+}
+else
+{
+  alert:false 추가
+}
+
+{
+  nhwang : {
+    daskim : 1
+    insjang : 1
+    ...
+  }
+  daskim : {
+    nhwang : 1
+    insjang : 1
+  }
+}
+*/
 let createdRooms: string[] = [];
 
 @WebSocketGateway({
@@ -39,12 +72,13 @@ export class ChatGateway
     private userService: UserService,
     private chatRoomService: ChatRoomService,
     private friendService : FriendService,
-  ) {}
-  private logger = new Logger('Gateway');
+    ) {}
+    private logger = new Logger('Gateway');
+    
+  private dmAlertMap = new Map<string, Map<string, number>>() //new 키워드 안에 없음 -> test 필요
 
 
   @WebSocketServer() nsp: Namespace;
-
   afterInit() {
     this.nsp.adapter.on('delete-room', (room) => {
       const deletedRoom = createdRooms.find(
@@ -83,6 +117,9 @@ export class ChatGateway
       success:true,
     });
     console.log("---------");
+    socket.emit('ft_tomain', {
+      success:true,
+    });
   }
 
   // 채널(네임스페이스) 탈주
@@ -340,21 +377,22 @@ export class ChatGateway
     arr.push(payload.username);
     arr.sort();
     let roomName = arr.join();
+
     ////targetUser으ㅣ 스스테테이이터터스스가  3이상이면 쳐쳐냄냄.
     const targetUser = await this.userService.getUserByUserName(
       userName,
       );
-      if (targetUser.status===0)
-        return { success: false, faillog : `${targetUser.username}은 오프라인 입니다.` }; ///3이면 채팅, 4면 게임
-      if (targetUser.status===3)
-        return { success: false, faillog : `${targetUser.username}은 채팅 중입니다.` }; ///3이면 채팅, 4면 게임
-      if (targetUser.status===4)
-        return { success: false, faillog : `${targetUser.username}은 게임 중입니다.` }; ///3이면 채팅, 4면 게임
-      if (targetUser.status===2)//// 2인 경경우  chat_user에서 targetUserId 찾아서 나온 값이 roomName이랑 일치하지 않으면 쳐냄
-      {
-        if (await this.chatRoomService.checkInRoom(targetUser.id) !== roomName)
-          return { success: false, faillog : `${targetUser.username}은 다른 사람과 DM중입니다.` };
-      }
+      // if (targetUser.status===0)
+      //   return { success: false, faillog : `${targetUser.username}은 오프라인 입니다.` }; ///3이면 채팅, 4면 게임
+      // if (targetUser.status===3)
+      //   return { success: false, faillog : `${targetUser.username}은 채팅 중입니다.` }; ///3이면 채팅, 4면 게임
+      // if (targetUser.status===4)
+      //   return { success: false, faillog : `${targetUser.username}은 게임 중입니다.` }; ///3이면 채팅, 4면 게임
+      // if (targetUser.status===2)//// 2인 경경우  chat_user에서 targetUserId 찾아서 나온 값이 roomName이랑 일치하지 않으면 쳐냄
+      // {
+      //   if (await this.chatRoomService.checkInRoom(targetUser.id) !== roomName)
+      //     return { success: false, faillog : `${targetUser.username}은 다른 사람과 DM중입니다.` };
+      // }
 
     //// 1인 경경우  진진행행
     const requestUser = await this.userService.getUserByUserName(
@@ -370,6 +408,29 @@ export class ChatGateway
     }
     if ((await this.chatRoomService.isUserInRoom(userId, roomName)) === false)
       await this.chatRoomService.joinUserToRoom(userId, roomName, 0); //이미 유저 네임이 있으면 만들지 않음
+    /*
+    let temp : Map<string,number> = new Map();
+      temp.set(`${payload.username}`,1);
+      // this.dm
+      this.dmAlertMap.set(receiver,temp);
+      console.log("test alert");
+      console.log("---------receiver",receiver);
+      console.log("---------in temp",temp.get(`${payload.username}`)); //temp["insjang"]);
+      console.log("---------in temp",this.dmAlertMap.get(`${receiver}`)); //temp["insjang"]);
+      console.log("test alert");
+      console.log(this.dmAlertMap.has(`${receiver}`));
+      console.log(this.dmAlertMap.has('test'));
+      
+      //join-dm 시
+      // dmAlertMap["userName"].delete("targetUser"(상대방));
+      
+      */
+    ////////////// test alert
+    if (this.dmAlertMap.has(`${payload.username}`) && this.dmAlertMap.get(`${payload.username}`).has(`${userName}`)===true)
+      this.dmAlertMap.get(`${payload.username}`).delete(`${userName}`);
+    ////////////// test alert
+    
+    
     socket.join(roomName);
     await this.userService.settingStatus(payload.username, 2);
     console.log('========???여기까지???');
@@ -430,6 +491,33 @@ export class ChatGateway
       friends.push(friend[0].chat_sockid);
       // roomName, user_id, msg, time으로 저장
       await this.chatRoomService.saveMessage(roomName, userId, message);
+      
+      const targerUser = await this.userService.getUserByUserName(receiver);
+      //ft-dm 시////////////////
+      // this.dm
+      if (await this.chatRoomService.isUserInDM(targerUser.id, roomName) === false)
+      {
+        // this.dmAlertMap.get('test');
+        // let temp : Map<string,number> = new Map();
+        // temp.set(`${payload.username}`,1);
+        // this.dmAlertMap.set(receiver,temp);
+        if (this.dmAlertMap.has(receiver) === false)
+          this.dmAlertMap.set(receiver,new Map<string,number>().set(`${payload.username}`,1));
+        else
+          this.dmAlertMap.get(receiver).set(`${payload.username}`,1);
+      }  
+      console.log("==================dm map ========== \n")
+      console.log(this.dmAlertMap.get(receiver));
+      console.log("==================dm map ========== \n")
+
+      // console.log("test alert");
+      // console.log("---------receiver",receiver);
+      // // console.log("---------in temp",temp.get(`${payload.username}`)); //temp["insjang"]);
+      // console.log("---------in temp",this.dmAlertMap.get(`${receiver}`)); //temp["insjang"]);
+      // console.log("test alert");
+      // console.log(this.dmAlertMap.has(`${receiver}`));
+      // console.log(this.dmAlertMap.has('test'));
+      //ft-dm 시////////////////
 
       await socket.broadcast.to(friends).emit('ft_dm', {
         username: `${payload.username}`,
@@ -679,7 +767,9 @@ export class ChatGateway
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false, faillog: `방의 소유자에 대해서는 변경할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
-    await this.chatRoomService.setMute(_Data["roomName"], targetUserId);
+    
+    if (await this.chatRoomService.setMute(_Data["roomName"], targetUserId)===false) 
+      return { success : false, faillog: `대상자는 이미 음소거 중입니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`, //
       message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
@@ -689,6 +779,7 @@ export class ChatGateway
     //   username: `${payload.username}(Admin)`,
     //   message: `${targetUser.username}님이 현재 채팅방에서 음소거되었습니다.`,
     // };
+
     const targetSock = await this.userService.getChatSocketByUserName(_Data["targetUser"]);
       let targetSocks = [];
       targetSocks.push(targetSock[0].chat_sockid);
@@ -816,12 +907,15 @@ export class ChatGateway
 
     const userId = user.id;
     const targetUserId = recvUser.id;
+    if (await this.friendService.isAlreadyFriendReq(userId,targetUserId)===true)
+      return {success : false, faillog : `이미 ${recvUser.username}님에게 친구요청한 상태입니다.`}
     if (await this.friendService.isFriend(userId,targetUserId)===true)
       return {success : false, faillog : `이미 ${recvUser.username}님과 친구입니다.`};
     await this.friendService.addFriend(userId,targetUserId);
     let targetList = [];
     targetList.push(recvUser.chat_sockid);
-    
+    console.log("----------- add friend  test");
+    console.log(targetList);
     await socket.broadcast.to(targetList).emit('ft_addfriend', {
       sender : payload.username,
       receiver : recvUser.username,
@@ -883,8 +977,31 @@ export class ChatGateway
       return error;
     }
     const user = await this.userService.getUserByUserName(payload.username);
-    socket.emit('ft_getfriendlist', await this.friendService.findFriendList(user));
-    return (await this.friendService.findFriendList(user));
+    let ret = await this.friendService.findFriendList(user);
+    console.log("------------for test alert origin------------");
+    console.log(ret);
+
+    console.log("------------for test alert origin------------");
+
+    console.log("------------for test alert!------------");
+    // console.log(ret);
+    let _return = [];
+    ret.map((i) => {
+      // i["alert"] = this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`);
+      i["alert"] = (this.dmAlertMap.has(`${payload.username}`) && this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`));
+      // console.log( || this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`));
+      _return.push(i);
+    });
+    /*
+    ret.map((i) => {
+            if (i.chat_sockid !== null)
+                _return.push(i.chat_sockid);//socketid
+        });
+    */
+    console.log(_return);
+    console.log("------------for test alert!------------");
+    socket.emit('ft_getfriendlist', _return);//////_return으로 교교체체할  예예정정 <-await this.friendService.findFriendList(user)
+    return (_return);//////_return
   }
 
   @SubscribeMessage('ft_invitechat') ///상대에 대해 채팅방으로 초대버튼 누른 경우
