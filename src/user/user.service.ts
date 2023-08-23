@@ -37,7 +37,40 @@ export class UserService {
     private readonly httpService: HttpService,
   ) {}
 
-  async tokenValidation(token: string) {
+
+  async adminSignIn(username:string, res: Response) {
+    let user = await this.userRepository.findOne({
+      where: {
+        username,
+      },
+    });
+    if (!user) {
+      const _user = await this.userRepository.createUser(
+        username,
+        username + '@Dummy.kr',
+      );
+      user = await this.userRepository.findOne({
+        where: {
+          username,
+        },
+      });
+    }
+    const payload = {
+      username,
+      id: user.id,
+    };
+    const accessToken = await this.jwtService.sign(payload);
+    const responseWithToken = await this.setToken(user, res);
+    // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
+    return responseWithToken.send({
+      two_factor_authentication_status: false,
+      username: user.username,
+      accessToken,
+    });
+  }
+
+  async tokenValidation(token: string)
+  {
     try {
       await jwt.verify(token, 'secret1234');
       return true;
@@ -53,9 +86,9 @@ export class UserService {
     // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
     const oauthConfig = config.get('oauth');
-    console.log(
-      '======================================== sigin in ===============================',
-    );
+    // console.log(
+    //   '======================================== sigin in ===============================',
+    // );
     console.log('redir', oauthConfig.oauth_redirect_uri);
     const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${oauthConfig.oauth_id}&client_secret=${oauthConfig.oauth_secret}&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
@@ -72,13 +105,13 @@ export class UserService {
         }),
       ),
     );
-    console.log(
-      '======================================== sigin in2 ===============================',
-    );
+    // console.log(
+    //   '======================================== sigin in2 ===============================',
+    // );
     const headers = {
       Authorization: `Bearer ${data.access_token}`,
     };
-    console.log(data.access_token);
+    // console.log(data.access_token);
     const _url = 'https://api.intra.42.fr/v2/me';
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
@@ -134,9 +167,9 @@ export class UserService {
       username: user.username,
       id: user.id,
     };
-    console.log('===========');
-    console.log(user);
-    console.log('===========');
+    // console.log('===========');
+    // console.log(user);
+    // console.log('===========');
 
     const accessToken = await this.jwtService.sign(payload);
     //////////////////////add///////////////////
@@ -258,6 +291,7 @@ export class UserService {
     //if (!username) {
     //  return;
     //}
+    console.log('disconnectGameSocket');
     await this.userRepository.update({ username }, { game_sockid: null });
   }
 
@@ -292,6 +326,10 @@ export class UserService {
   async getUserByPingPongSocketId(id: number) {
     const query = `select "socketid" from "user" where socketid = ${id};`;
     return await this.userRepository.query(query);
+  }
+
+  async getUserByGameSocketId(id: string) {
+    return await this.userRepository.findOne({ where: { game_sockid: id } });
   }
 
   async getUserNameByChatSockId(chat_socketid: string) {
@@ -330,6 +368,10 @@ export class UserService {
     return await userProfile;
   }
 
+  async settingStatus(username: string, status: number) {
+    await this.userRepository.update({ username }, { status });
+  }
+
   async uploadProfileImage(username: string, image: Express.Multer.File) {
     if (!image) {
       throw new BadRequestException();
@@ -341,6 +383,27 @@ export class UserService {
     if (!imageUpdate.affected) throw new UnauthorizedException();
     return 'succeed';
   }
+
+  async leaderScoreUpdate(winner: User, loser: User) {
+    if (!winner || !loser) {
+      return ;
+    }
+    const winScore = winner.ladder_lv;
+    const loseScore = loser.ladder_lv;
+    if (winScore === null) {
+      winner.ladder_lv = 1000;
+    }
+    if (loseScore === null) {
+      loser.ladder_lv = 1000;
+    }
+    this.userRepository.update(winner.id, {
+      ladder_lv: winner.ladder_lv + 20,
+    });
+    this.userRepository.update(loser.id, {
+      ladder_lv: loser.ladder_lv - 20,
+    });
+  }
+
 // user servic
   async adminSignIn(username:string, res: Response) {
     let user = await this.userRepository.findOne({
