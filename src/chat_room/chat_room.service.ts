@@ -4,7 +4,9 @@ import * as bcrypy from 'bcrypt';
 
 @Injectable()
 export class ChatRoomService {
-    constructor(private chatRoomRepository : ChatRoomRepository){}
+    constructor(
+        private chatRoomRepository : ChatRoomRepository,
+        ){}
     
     async createDmRoom(userid : number, roomName : string)
     {
@@ -62,6 +64,11 @@ export class ChatRoomService {
         console.log("in leave User in ROOM");
         const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
         update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
+        
+        const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
+        const chatroom = await this.chatRoomRepository.query(query2);
+        if (chatroom[0].curr_user === 0)
+            return ;
         await this.chatRoomRepository.query(query);
     }
     
@@ -226,12 +233,12 @@ export class ChatRoomService {
         //select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10;
         //ㄴ> 날 블록한 유저 id -> as A
         // select "user"."socketid" from (select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10) as "A" left join "user" on "user"."id" = "A"."user_id";
-        const query = `select "user"."socketid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const query = `select "user"."chat_sockid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
         const ret = await this.chatRoomRepository.query(query);
         let _return = [];
         ret.map((i) => {
-            if (i.socketid !== null)
-                _return.push(i.socketid);
+            if (i.chat_sockid !== null)
+                _return.push(i.chat_sockid);//socketid
         });
 
         return _return;
@@ -239,9 +246,12 @@ export class ChatRoomService {
     
     async isValidPassword(roomName:string, password : string)
     {
+        // const q = `select * from "chat_room" where index='${roomName}';`;
+        // const check =  await this.chatRoomRepository.query(q);
+        // if (check.length === 0)
+        //     return false;
         const query = `select "password" from "chat_room" where index='${roomName}';`;
         const obj = await this.chatRoomRepository.query(query);
-        
         if (await bcrypy.compare(password, obj[0].password))
             return true;
         return false;
@@ -313,16 +323,75 @@ export class ChatRoomService {
         if (await this.isMuted(roomName,targetUserId)===true)
             return false;
         // const query = `update "chat_user" set "mute_end_time" = "NOW()+" , ;`;
-        //update "chat_user" set "mute_end_time" = NOW()+(10 || 'minutes')::interval where "user_id" = 12; //10분 증가해서 저장!
+        const query = `update "chat_user" set "mute_end_time" = NOW()+(1 || 'minutes')::interval where "user_id" = ${targetUserId}`; //10분 증가해서 저장!
+        await this.chatRoomRepository.query(query);
+        return true;
         //https://stackoverflow.com/questions/21745125/add-minutes-to-current-timestamp-in-postgresql
+        
     }
 
-    async deleteMute(roomName : string)
+    async checkMuteUnlock(roomName : string)
     {
         //해제된 녀석들의 chatSocket 던져주기
-        const query = `select ;`;
+        /*
+        select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp;
+        ㄴ-> as "A"
+
+        
+        `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+        */
+
+        const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length!==0)
+        {
+            const query2 = `update "chat_user" set "mute_end_time"=null where  NOW() > "mute_end_time"::timestamp;`;
+            await this.chatRoomRepository.query(query2);
+        }
+        return (ret);
     }
     
+    async checkInRoom(targetUserId : number)
+    {
+        const query = `select * from "chat_user" where "user_id" = ${targetUserId};`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length===0)
+            return ;
+        return ret[0].index;
+    }
+
+    async isUserInDM(receiverId: number, roomName :string)
+    {
+        const query = `select * from "chat_user" where "index" = '${roomName}' and "user_id" = ${receiverId};`;
+        const ret = await this.chatRoomRepository.query(query);
+        if (ret.length===0)
+            return false;
+        return true;
+    }
+
+    async updateRoomPassword(userId : number, roomName : string, hashedPassword : string)
+    {
+        const query = `update "chat_room" set "password"='${hashedPassword}',"room_stat"=1 where "index"='${roomName}' and "owner_id" = ${userId};`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    async deleteRoomPassword(userId : number, roomName : string)
+    {
+        const hashedPassword = await this.hashPassword('');
+        const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = '${roomName}' and "owner_id" = ${userId};`;
+        await this.chatRoomRepository.query(query);
+    }
+
+    // async preventInjection(userInput : string)
+    // {
+    //     var input = userInput.split(' ');
+    //     input.map((i)=>{
+    //         for (var j in i)
+    //         {
+
+    //         }
+    //     });
+    // }
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
