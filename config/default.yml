@@ -2,9 +2,9 @@ jwt:
   secret: 'secret1234'
 
 oauth:
-  oauth_id: 'u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1'
-  oauth_secret: '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'
-  oauth_redirect_uri: 'http://10.19.210.104:3000/redirect'
+  oauth_id: 'b4804153b3af8bb056c9b190c687aacbe4ee6dfa17e8ba4932bb21a8d9426071'
+  oauth_secret: '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'
+  oauth_redirect_uri: 'http://10.15.1.5:3000/redirect'
 
 game:
   paddleWidth: 2
