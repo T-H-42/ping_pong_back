@@ -1,4 +1,4 @@
-import { TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -9,5 +9,5 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   database: 'websocket',
   entities: [__dirname + '/../**/*.entity.{js,ts}'],
   synchronize: true,
-  logging: false // true 이면 query 어떻게 가는지 콘솔로 확인
-}
+  logging: false, // true 이면 query 어떻게 가는지 콘솔로 확인
+};

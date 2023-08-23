@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -17,7 +18,7 @@ import * as crypto from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CertificateDto } from './dto/certificate.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { HttpService } from '@nestjs/axios';
 import * as config from 'config';
 import { Any } from 'typeorm';
@@ -25,7 +26,7 @@ import { Socket } from 'dgram';
 import { createReadStream } from 'fs';
 import path from 'path';
 import { JwtStrategy } from './jwt.strategy';
-import * as jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class UserService {
@@ -35,6 +36,7 @@ export class UserService {
     private mailService: MailerService,
     private readonly httpService: HttpService,
   ) {}
+
 
   async adminSignIn(username:string, res: Response) {
     let user = await this.userRepository.findOne({
@@ -72,9 +74,8 @@ export class UserService {
     try {
       await jwt.verify(token, 'secret1234');
       return true;
-    } catch (error) 
-    {
-     throw new UnauthorizedException('Invalid token');
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
     }
   }
 
@@ -129,7 +130,7 @@ export class UserService {
 
     let user = await this.userRepository.findOne({
       where: {
-        username: response.data.login,
+        intra_id: response.data.login,
       },
     });
     if (!user) {
@@ -156,7 +157,7 @@ export class UserService {
       const _res = await this.setToken(_user, res);
       user = await this.userRepository.findOne({
         where: {
-          username: response.data.login,
+          intra_id: response.data.login,
         },
       });
     }
@@ -175,7 +176,7 @@ export class UserService {
     console.log('===========');
     console.log(accessToken);
     console.log('===========');
-    
+
     if (user.two_factor_authentication_status === true) {
       // await this.sendMail(loginDto);
       console.log('user exist');
@@ -402,4 +403,96 @@ export class UserService {
       ladder_lv: loser.ladder_lv - 20,
     });
   }
+
+// user servic
+  async adminSignIn(username:string, res: Response) {
+    let user = await this.userRepository.findOne({
+      where: {
+        username,
+      },
+    });
+    if (!user) {
+      const _user = await this.userRepository.createUser(
+        username,
+        username + '@Dummy.kr',
+      );
+      user = await this.userRepository.findOne({
+        where: {
+          username,
+        },
+      });
+    }
+    const payload = {
+      username,
+      id: user.id,
+    };
+    const accessToken = await this.jwtService.sign(payload);
+    const responseWithToken = await this.setToken(user, res);
+    // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
+    return responseWithToken.send({
+      two_factor_authentication_status: false,
+      username: user.username,
+      accessToken,
+    });
+  }
+  async changeNickname(user:User, nickname: string, res: Response) {
+    if (user.intra_id !== nickname) {
+      const oath = config.get('oauth');
+      const token = await axios
+        .post('https://api.intra.42.fr/oauth/token', {
+          grant_type: 'client_credentials',
+          client_id: oath.oauth_id,
+          client_secret: oath.oauth_secret,
+        })
+        .then((res) => {
+          return res.data.access_token;
+        });
+      const res = await axios
+        .get(`https://api.intra.42.fr/v2/users/${nickname}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        .then((res) => {
+          return '닉네임은 다른 사람의 intraID로 생성 불가능합니다.';
+        })
+        .catch((error) => {
+          return '';
+        });
+      if (res) {
+        throw new BadRequestException(
+          '닉네임은 다른 사람의 intraID로 생성 불가능합니다.',
+        );
+      }
+    }
+    let nicknameUpdate;
+    try{
+        nicknameUpdate = await this.userRepository.updateUsername(
+        nickname,
+        user.intra_id,
+        )
+      }
+      catch(error) { // 중복된 닉네임일 경우 해당 에러 객체로 오류 처리
+        if (error.code === '23505')
+          throw new BadRequestException('이미 있는 닉네임 입니다.');
+      };
+      if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
+        throw new InternalServerErrorException('Something went wrong!!!');
+      }
+    user.username = nickname;
+    console.log("user!!!!!!!!!!");
+    console.log(user);
+    console.log("user!!!!!!!!!!");
+
+    const _res = await this.setToken(user, res);
+    console.log("user!!!!!!!!!!");
+    console.log(_res);
+    console.log("user!!!!!!!!!!");
+
+    return (_res.send());
+    
+    // return 'succeed';
+  }
 }
+
+

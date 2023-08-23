@@ -6,7 +6,7 @@ export class Chat_Block extends BaseEntity {
     id : number;
 
     @Column()
-    chat_room_id : number;
+    index : string;
 
     @Column()
     user_id : number;

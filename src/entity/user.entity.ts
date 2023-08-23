@@ -5,6 +5,7 @@ import {
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity()
@@ -13,8 +14,11 @@ export class User extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({unique: true})
   username: string;
+
+  @Column({ nullable: true })
+  intra_id: string;
 
   @Column({ nullable: true })
   socketid: string; //sockid_pingpong
