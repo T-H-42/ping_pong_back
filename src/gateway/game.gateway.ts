@@ -177,7 +177,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     users.forEach(async username => {
       const user = await this.userService.getUserByUserName(username);
       if (user.socketid) {
-        this.userService.settingStatus(username, 1);
+        await this.userService.settingStatus(username, 1);
       }
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
