@@ -15,7 +15,6 @@ import { ChatBlockModule } from './modules/chat_block.module';
 import { ChatUserModule } from './modules/chat_user.module';
 import { GameModule } from './modules/game.module';
 import { ChatRoomModule } from './chat_room/chat_room.module';
-import { GameGateway } from './gateway/game.gateway';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
