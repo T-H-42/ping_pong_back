@@ -63,6 +63,7 @@ export class UserController {
     if (!username) {
       throw new BadRequestException('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다.');
     }
+    console.log('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다. ', username);
     return await this.userService.getUserProfile(username);
   }
 
