@@ -347,9 +347,9 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
-  async getUserProfile(User: User, username: string) {
+  async getUserProfile(username: string) {
     const user = await this.userRepository.query(
-      `select id, username, status, ladder_lv, image_url from "user" where "username" = '${User.username}';`,
+      `select id, username, status, ladder_lv, image_url from "user" where "username" = '${username}';`,
     );
     //id null?
     const userAchievement = await this.userRepository.query(
