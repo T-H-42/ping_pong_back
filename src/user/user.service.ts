@@ -167,18 +167,27 @@ export class UserService {
       username: user.username,
       id: user.id,
     };
-    // console.log('===========');
-    // console.log(user);
-    // console.log('===========');
+    
+    //////////////중복 로그인 방지 위해 추가했습니다. 던지는 것 까지는 잘되는것 같은데, 프론트에서 받는 부분 구현되면 될 것 같습니다.-nhwang
+    // try {
+    //   console.log('===========ttttttt2');
+    //   if (user.socketid !== null)
+    //   {
+    //     console.log('===========ttttttt3',user.socketid);
+    //     return new UnauthorizedException('Already Logged in');
+    //   }
+    // }
+    // catch(error)
+    // {
+    //   console.log('===========ttttttt4');
+    //   return new UnauthorizedException('UnauthorizedException!');
+    // }
 
     const accessToken = await this.jwtService.sign(payload);
+    console.log("Token :",accessToken);
     //////////////////////add///////////////////
-    console.log('===========');
-    console.log(accessToken);
-    console.log('===========');
-
+    
     if (user.two_factor_authentication_status === true) {
-      // await this.sendMail(loginDto);
       console.log('user exist');
       await this.sendMail(user.username);
       return res.send({
@@ -349,14 +358,23 @@ export class UserService {
 
   async getUserProfile(username: string) {
     const user = await this.userRepository.query(
-      `select id, username, status, ladder_lv, image_url from "user" where "username" = '${username}';`,
+      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = '${username}';`,///2차 인증 추가하였습니다. nhwang
     );
     const userAchievement = await this.userRepository.query(
       `select achievement from achievement where user_id = ${user[0].id};`,
     );
     const userGameHistory = await this.userRepository.query(
-      `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
-    );
+      // `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
+      `select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser";`
+      /*
+      select winner, loser, time from game where (game.finished and (game.winner = 25 or game.loser = 25));
+      ㄴ> as A
+      select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = 25 or game.loser = 25))) as "A" left join "user" on "user"."id" = "A"."winner";
+      ㄴ> as B
+      select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = 25 or game.loser = 25))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser";
+      ㄴ->final
+      */
+      );
     const userProfile = await {
       ...user[0],
       achievements: [] as string[],
@@ -461,6 +479,13 @@ export class UserService {
     return (_res.send());
     
     // return 'succeed';
+  }
+
+  
+  async changeAuthentication(user: User, body: { two_factor_authentication_status: boolean })
+  {
+    const query = `update "user" set "two_factor_authentication_status"=${body.two_factor_authentication_status} where id=${user.id};`;
+    return await this.userRepository.query(query);
   }
 }
 
