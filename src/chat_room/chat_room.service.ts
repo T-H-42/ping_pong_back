@@ -10,8 +10,12 @@ export class ChatRoomService {
     
     async createDmRoom(userid : number, roomName : string)
     {
-        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, index) values (${userid}, 3, null, 2, 1, '${roomName}');`;
+        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, index) values (${userid}, 3, null, 2, 0, '${roomName}');`;
         await this.chatRoomRepository.query(query);
+        ////
+        const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = '${roomName}';`
+        console.log("createRoom user",await this.chatRoomRepository.query(test));
+        ///
     }
 
     async createChatRoom(userid : number, roomName : string, status: number, password : string, limitUser : number)
@@ -88,8 +92,9 @@ export class ChatRoomService {
     {
         if (roomName === null)
             return false;
-        const query = `select * from "chat_user" where ("index" = '${roomName}' and "user_id" = ${userid});`; ///
+        const query = `select * from "chat_user" where ("index"='${roomName}' and "user_id" = ${userid});`; ///
         const queryList = await this.chatRoomRepository.query(query);
+        console.log("is User InRoom?", queryList, "roomName :", roomName, "userid :", userid);
         if (queryList.length === 0)
             return false;
         return true;
@@ -382,16 +387,55 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query);
     }
 
-    // async preventInjection(userInput : string)
+    // async preventInjection(userInputAny : any)
     // {
+    //     let checkArr = ["select","delete","update","create","revoke","exec","commit","alter","drop"];
+    //     var userInput = String(userInputAny);
     //     var input = userInput.split(' ');
+    //     var _check : boolean;
     //     input.map((i)=>{
-    //         for (var j in i)
-    //         {
-
-    //         }
+    //         let inputstr = i.toLowerCase();
+    //         if (_check === false)
+    //             return ;
+    //         checkArr.map((j)=>{
+    //             if (inputstr == j)
+    //             {
+    //                 _check = false;
+    //                 return ;
+    //             }
+    //         });
     //     });
+    //     console.log("check in preventInjection :", _check);
+    //     if (_check == false)
+    //         return false;
+    //     return true;
     // }
+    
+    async preventInjection(userInputAny : string)
+    {
+        let checkArr = ["select","delete","update","create","revoke","exec","commit","alter","drop"];
+        for (const [key, value] of Object.entries(userInputAny)) {
+        var userInput = String(value);
+        var input = userInput.split(' ');
+        var _check : boolean;
+        input.map((i)=>{
+            let inputstr = i.toLowerCase();
+            if (_check === false)
+                return ;
+            checkArr.map((j)=>{
+                if (inputstr == j)
+                {
+                    _check = false;
+                    return ;
+                }
+            });
+        });
+        }
+        if (_check == false)
+            throw new Error('Injection');
+        return true;
+    }
+
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
