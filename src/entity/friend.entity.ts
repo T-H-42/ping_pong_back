@@ -23,4 +23,7 @@ export class Friend extends BaseEntity {
 
   @Column({ default: false })
   accecpt: boolean;
+
+  @Column({nullable:true})
+  req_time:string;
 }

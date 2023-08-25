@@ -924,7 +924,7 @@ export class ChatGateway
     const userId = user.id;
     const targetUserId = recvUser.id;
     if (await this.friendService.isAlreadyFriendReq(userId,targetUserId)===true)
-      return {success : false, faillog : `이미 ${recvUser.username}님에게 친구요청한 상태입니다.`}
+      return {success : false, faillog : `이미 ${recvUser.username}님과 친구요청 시도 중 입니다. 1분 뒤 재시도 하세요.`}
     if (await this.friendService.isFriend(userId,targetUserId)===true)
       return {success : false, faillog : `이미 ${recvUser.username}님과 친구입니다.`};
     await this.friendService.addFriend(userId,targetUserId);

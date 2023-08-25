@@ -14,9 +14,28 @@ export class FriendService {
   
   //유저네임 받아서 유저 객체 리턴해주는
   async addFriend( my_id: number , friend_id:number){
-    const query = `insert into "friend"("sendIdId", "recvIdId", accecpt) values (${my_id}, ${friend_id}, 'false')`;
-    // const result = await this.userRepository.query(query);
-    const result = await this.friendRepository.query(query);
+    const checkAlreadyRow = `select * from "friend" where "sendIdId"=${my_id} and "recvIdId"=${friend_id} and accecpt=false;`;
+    const checkAlreadyRow2 = `select * from "friend" where "sendIdId"=${friend_id} and "recvIdId"=${my_id} and accecpt=false;`;
+    const check1 = await this.friendRepository.query(checkAlreadyRow);
+    const check2 = await this.friendRepository.query(checkAlreadyRow2);
+
+    if (check1.length !==0)
+    {
+      ///update로 시간만 증가
+      const query = `update "friend" set "sendIdId"=${my_id}, "recvIdId"=${friend_id}, "req_time"=NOW()+(1 || 'minutes')::interval where  "sendIdId"=${my_id} and "recvIdId"=${friend_id} and accecpt='false'`;
+      await this.friendRepository.query(query);
+    }
+    else if (check2.length !==0)
+    {
+
+      const query = `update "friend" set "sendIdId"=${friend_id}, "recvIdId"=${my_id}, "req_time"=NOW()+(1 || 'minutes')::interval where  "sendIdId"=${friend_id} and "recvIdId"=${my_id} and accecpt='false'`;
+      await this.friendRepository.query(query);
+    }
+    else
+    {
+      const query = `insert into "friend"("sendIdId", "recvIdId", accecpt, "req_time") values (${my_id}, ${friend_id}, 'false', NOW()+(1 || 'minutes')::interval)`;
+      await this.friendRepository.query(query);
+    }
   }
   /////////////
   async findFriendList(user: User): Promise<User[]> {
@@ -91,9 +110,9 @@ export class FriendService {
     {
       if (userId === targetUserId)
         return true;
-      const query1 = `select * from "friend" where "accecpt"=false and "sendIdId"=${userId} and "recvIdId"=${targetUserId};`;
+      const query1 = `select * from "friend" where "accecpt"=false and "sendIdId"=${userId} and "recvIdId"=${targetUserId} and "req_time"::timestamp > NOW();`;
       const ret1 = await await this.friendRepository.query(query1);
-      const query2 = `select * from "friend" where "accecpt"=false and "sendIdId"=${targetUserId} and "recvIdId"=${userId};`;
+      const query2 = `select * from "friend" where "accecpt"=false and "sendIdId"=${targetUserId} and "recvIdId"=${userId} and "req_time"::timestamp > NOW();`;
       const ret2 = await this.friendRepository.query(query2);
 
       if (ret1.length === 0 && ret2.length === 0)
