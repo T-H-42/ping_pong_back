@@ -475,10 +475,10 @@ export class ChatGateway
     await this.chatRoomService.leaveUserFromRoom(userId, _Data["roomName"]);
     socket.leave(_Data["roomName"]); //DM과 다르게, 상대방 소켓을 찾아내서 leave 시켜야 한다.
     await this.userService.settingStatus(payload.username,1);
-    socket.broadcast.to(_Data["roomName"]).emit('ft_dm', {
-      username: `${payload.username}`,
-      message: `님이 DM에서 나갔습니다`,
-    });
+    // socket.broadcast.to(_Data["roomName"]).emit('ft_dm', {
+    //   username: `${payload.username}`,
+    //   message: `님이 DM에서 나갔습니다`,
+    // });
     return { success: true };
   }
 
@@ -607,7 +607,9 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
-      const targetUserId = targetUser.id;
+    if (payload.username == _Data["targetUser"])
+      return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`};
+    const targetUserId = targetUser.id;
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false, faillog : `방의 소유자에 대해서는 처리할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
@@ -660,6 +662,8 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
+      if (payload.username == _Data["targetUser"])
+        return {success : false, faillog : `자기 자신을 금지 할 수 없습니다.`};
       const targetUserId = targetUser.id;
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
@@ -703,7 +707,9 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
-      const targetUserId = targetUser.id;
+    if (payload.username == _Data["targetUser"])
+      return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`};
+    const targetUserId = targetUser.id;
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
@@ -780,7 +786,8 @@ export class ChatGateway
       _Data["targetUser"],
       );
       const targetUserId = targetUser.id;
-      
+    if (payload.username == _Data["targetUser"])
+      return {success : false, faillog : `자기 자신을 음소거 할 수 없습니다.`};
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false, faillog: `방의 소유자에 대해서는 변경할 수 없습니다.` }; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
@@ -878,6 +885,8 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
+    if (payload.username == _Data["targetUser"])
+      return {success : false, faillog : `자기 자신을 강퇴 할 수 없습니다.`};
     const targetUserId = targetUser.id;
       
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
@@ -919,6 +928,8 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return error;
     }
+    if (payload.username == _Data["receiver"])
+      return {success : false, faillog : `자기 자신을 친구로 추가할 수 없습니다.`};
     const user = await this.userService.getUserByUserName(payload.username);
     const recvUser = await this.userService.getUserByUserName(_Data["receiver"]);
 
