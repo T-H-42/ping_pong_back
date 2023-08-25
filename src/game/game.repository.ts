@@ -10,10 +10,7 @@ export class GameRepository extends Repository<Game> {
   }
 
   async createGame(user1: User, user2: User) {
-    this.query(`
-      insert into game (winner, loser, finished)
-      values (${user1.id}, ${user2.id}, false)`);
-    // return game;
+    await this.query(`insert into "game" ("winner", "loser", "finished") values (${user1.id}, ${user2.id}, false);`);
   }
 
   async getUserByGameSockId(game_sockid: string): Promise<User> {
