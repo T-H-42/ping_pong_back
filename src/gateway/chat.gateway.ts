@@ -376,7 +376,8 @@ export class ChatGateway
       socket.broadcast.emit('room-list', list);
     }
     socket.leave(_Data['roomName']);
-    await this.userService.settingStatus(payload.username,1);
+    if (requestUser.status !== 4)
+      await this.userService.settingStatus(payload.username,1);
     // const userRight = await this.chatRoomService.getUserRight(userId,roomName);
     // return (await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]));
     const userList = await this.chatRoomService.getUserListInChatRoom(_Data['roomName']);

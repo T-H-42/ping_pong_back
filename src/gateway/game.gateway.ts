@@ -6,6 +6,7 @@ import * as config from 'config';
 import * as jwt from 'jsonwebtoken';
 import { UserService } from 'src/user/user.service';
 import { GameService } from 'src/game/game.service';
+import { ChatRoomService } from 'src/chat_room/chat_room.service';
 
 // 게임 설정 인터페이스
 interface GameInformation {
@@ -55,6 +56,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private gameService: GameService,
     private userService: UserService,
+    private chatRoomService: ChatRoomService,
   ) { }
 
   @WebSocketServer() nsp: Namespace;
@@ -214,7 +216,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 게임초대
   // 방장 -> b 방장 소켓, 게스트 이름
   @SubscribeMessage('ft_invite_game') ///게임으로 초대 버튼 누른 경우 (FE -> BE)
-  async handleInviteGame(@ConnectedSocket() socket: Socket, guestName: string) {
+  async handleInviteGame(@ConnectedSocket() socket: Socket, @MessageBody() _Data: string) {
     this.logger.log(`Game 채널 handleInviteGame 호출`);
     let payload;
     try {
@@ -224,19 +226,28 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
     const ownerName = payload.username;
-    const guestUser = await this.userService.getUserByUserName(guestName);
-    // const ownerUser = await this.userService.getUserByUserName(ownerName);
-    // 유저가 온라인이 아니면? return false
-    if (guestUser.status === 0) {
+    console.log('방장 이름', ownerName);
+    console.log('게스트 이름', _Data);
+    const guestUser = await this.userService.getUserByUserName(_Data['guestName']);
+    // 자기 자신을 초대한 경우  
+    if (ownerName === _Data['guestName']) {
       return {
         success: false,
-        faillog: '유저가 온라인이 아닙니다.',
+        faillog: '자기 자신을 초대할 수 없습니다.',
+      }
+    }
+    // 상대방이 같은 방에 속해있지 않은경우
+    if (await this.chatRoomService.isUserInRoom(guestUser.id, _Data['roomName'])===false) {
+      return {
+        success: false,
+        faillog: '유저가 채팅방에서 나갔습니다.',
       };
     }
     // 상대방에게 초대 알림 
-    console.log("gamesock in chatroom",guestUser.game_sockid);
-    socket.to(guestUser.game_sockid).emit('ft_invite_game_from_chat', {
-      ownerName,
+    console.log("gamesock in chatroom", guestUser.username);
+    console.log("gamesock in chatroom", ownerName);
+    socket.to(guestUser.game_sockid).emit('ft_invite_game', {
+      sender: ownerName,
     });
     return {
       success: true,
@@ -244,19 +255,30 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // F -> B 수락 거절 결과
-  @SubscribeMessage('ft_invite_result')
-  async handleInviteResult(ownerName: string, guestName: string, accept: boolean) {
+  @SubscribeMessage('ft_invite_game_result')
+  async handleInviteResult(@MessageBody() _Data: string) {
     // 초대 수락 시
-    if (accept) {
-      const ownerUser = await this.userService.getUserByUserName(ownerName);
+    this.logger.log(`Game 채널 handleInviteResult 호출`);
+    const ownerUser = await this.userService.getUserByUserName(_Data['sender']);
+    if (_Data['result']) {
       // 방장이 나가있다면?
-      if (!ownerUser || (ownerUser.status !== 1 && ownerUser.status !== 3))
-        return false;
-      const users = [ownerName, guestName];
-      await this.createGameRoom(users);
+      if (await this.chatRoomService.isUserInRoom(ownerUser.id, _Data['roomName']) === false) {
+        return {
+          success: false,
+          faillog: '초대한 유저가 채팅방에서 나갔습니다.',
+        };
       }
+      const users = [_Data['sender'], _Data['receiver']];
+      await this.createGameRoom(users);
+    }
+
+    // 초대 거절
     else {
-      return false;
+      const socket = this.nsp.sockets.get(ownerUser.game_sockid);
+      socket.emit('ft_invite_game_result', {
+        success: false,
+        faillog: '상대방이 초대를 거절했습니다.',
+      });
     }
   }
   
@@ -304,7 +326,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
   // 방에 들어갈 때 공통으로 처리해야 하는 함수
-  handleJoinRoom(users: string[], roomName: string) {
+  async handleJoinRoom(users: string[], roomName: string) {
+    const usernames = { ownerName: users[0], guestName: users[1]}
     users.forEach(async username => {
       //소켓 인덱스가 0 이면 오너는 true, 1이면 false
       this.RoomConnectedSocket.set(username, roomName);
@@ -316,11 +339,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       const isOwner = users.indexOf(username) === 0 ? true : false;
       socket.join(roomName);
-      this.userService.settingStatus(username, 3);
       console.log(socket.id);
+      await this.userService.settingStatus(username, 4);
       socket.emit('ft_match_success', {
         success: true,
-        username,
+        usernames,
         roomName,
         isOwner,
       });

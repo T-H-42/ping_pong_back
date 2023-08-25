@@ -59,11 +59,12 @@ export class UserController {
 
   @Get('/profile')
   @UseGuards(AuthGuard())
-  async getUserProfile(@Query('username') username?: string) {
+  async getUserProfile(@GetUser() User, @Query('username') username?: string) {
     if (!username) {
       throw new BadRequestException('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다.');
     }
-    return await this.userService.getUserProfile(username);
+    console.log('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다. ', username);
+    return await this.userService.getUserProfile(User, username);
   }
 
   @UseInterceptors(FileInterceptor('image'))
