@@ -232,18 +232,18 @@ export class ChatGateway
     } catch (error) {
       console.log('chatroom create 에러');
     }
-    console.log('=======');
-    console.log(payload);
-    console.log('====roomname===');
+    // console.log('=======');
+    // console.log(payload);
+    // console.log('====roomname===');
 
-    console.log('=======');
+    // console.log('=======');
 
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
     );
-    console.log('=======');
-    console.log(requestUser);
-    console.log('=======');
+    // console.log('=======');
+    // console.log(requestUser);
+    // console.log('=======');
 
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(_Data['roomName']); // 방이 있는지 DB에 유효성 체크
@@ -376,7 +376,8 @@ export class ChatGateway
       socket.broadcast.emit('room-list', list);
     }
     socket.leave(_Data['roomName']);
-    await this.userService.settingStatus(payload.username,1);
+    if (requestUser.status !== 4)
+      await this.userService.settingStatus(payload.username,1);
     // const userRight = await this.chatRoomService.getUserRight(userId,roomName);
     // return (await this.chatRoomService.getUserListInChatRoom(_Data["roomName"]));
     const userList = await this.chatRoomService.getUserListInChatRoom(_Data['roomName']);

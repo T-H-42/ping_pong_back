@@ -351,8 +351,9 @@ export class UserService {
     const user = await this.userRepository.query(
       `select id, username, status, ladder_lv, image_url from "user" where "username" = '${username}';`,
     );
+    //id null?
     const userAchievement = await this.userRepository.query(
-      `select achievement from achievement where user_id = ${user[0].id};`,
+      `select "achievement" from achievement where user_id = ${user[0].id};`,
     );
     const userGameHistory = await this.userRepository.query(
       `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
