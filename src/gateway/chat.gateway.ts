@@ -209,18 +209,18 @@ export class ChatGateway
     } catch (error) {
       console.log('chatroom create 에러');
     }
-    console.log('=======');
-    console.log(payload);
-    console.log('====roomname===');
+    // console.log('=======');
+    // console.log(payload);
+    // console.log('====roomname===');
 
-    console.log('=======');
+    // console.log('=======');
 
     const requestUser = await this.userService.getUserByUserName(
       payload.username,
     );
-    console.log('=======');
-    console.log(requestUser);
-    console.log('=======');
+    // console.log('=======');
+    // console.log(requestUser);
+    // console.log('=======');
 
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(_Data['roomName']); // 방이 있는지 DB에 유효성 체크

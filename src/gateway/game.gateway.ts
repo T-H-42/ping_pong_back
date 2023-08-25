@@ -115,7 +115,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return { success: false };
       this.matchQueue.push(payload.username);
 
-      // 2명이면 매칭 큐에서 제거 게임 방 생성
+      // 매칭 큐 2명이면 유효하지 확인 후 그렇지 않으면 큐에서 제거
+      if (this.matchQueue.length === 2) {
+        this.matchQueue.forEach(async username => {
+          const user = await this.userService.getUserByUserName(username);
+          if (user.status !== 1)
+            this.matchQueue = this.matchQueue.filter(item => item !== username);
+        })
+      }
+      // 여전히 2명이면 게임방 생성
       if (this.matchQueue.length === 2) {
         const users = this.matchQueue.splice(0, 2);
         await this.createGameRoom(users);
@@ -150,6 +158,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const loserUser = await this.userService.getUserByUserName(payload.username);
       if (!winnerUser) {
         console.log(remainingUsername, ' 얘도 나간듯?');
+        return;
       }
       if (!this.gameRooms[roomName]) {
         console.log('게임방 없음 아마 front에러');
@@ -204,18 +213,34 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 ////////////////////////////////chat -> game////////////////////////////////
   // 게임초대
   // 방장 -> b 방장 소켓, 게스트 이름
-  @SubscribeMessage('ft_invite_game')
-  async handleInviteGame(@ConnectedSocket() socket: Socket, ownerName: string, guestName: string) {
+  @SubscribeMessage('ft_invite_game') ///게임으로 초대 버튼 누른 경우 (FE -> BE)
+  async handleInviteGame(@ConnectedSocket() socket: Socket, guestName: string) {
     this.logger.log(`Game 채널 handleInviteGame 호출`);
+    let payload;
+    try {
+      payload = await this.getPayload(socket);
+    } catch (error) {
+      this.logger.error('fail GameGateway handleInviteGame', error);
+      return;
+    }
+    const ownerName = payload.username;
     const guestUser = await this.userService.getUserByUserName(guestName);
+    // const ownerUser = await this.userService.getUserByUserName(ownerName);
     // 유저가 온라인이 아니면? return false
-    if (guestUser.status === 0)
-      return false;
-    // 초대 알림
+    if (guestUser.status === 0) {
+      return {
+        success: false,
+        faillog: '유저가 온라인이 아닙니다.',
+      };
+    }
+    // 상대방에게 초대 알림 
+    console.log("gamesock in chatroom",guestUser.game_sockid);
     socket.to(guestUser.game_sockid).emit('ft_invite_game_from_chat', {
       ownerName,
     });
-    return true;
+    return {
+      success: true,
+    };
   }
 
   // F -> B 수락 거절 결과
@@ -295,6 +320,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(socket.id);
       socket.emit('ft_match_success', {
         success: true,
+        username,
         roomName,
         isOwner,
       });
