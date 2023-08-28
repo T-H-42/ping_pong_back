@@ -497,7 +497,7 @@ export class ChatGateway
           this.dmAlertMap.set(_Data['receiver'],new Map<string,number>().set(`${payload.username}`,1));
         else
           this.dmAlertMap.get(_Data['receiver']).set(`${payload.username}`,1);
-      }  
+      }
       console.log("==================dm map ========== \n")
       console.log(this.dmAlertMap.get(_Data['receiver']));
       console.log("==================dm map ========== \n")

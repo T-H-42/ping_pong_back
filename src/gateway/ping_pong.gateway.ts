@@ -48,12 +48,7 @@ export class PingPongGateway
         console.log('-=-=-=-=-=-=-=-=-=-=-=-=-==-=');
         return;
       }
-      //const socketList = await friendlist.socketid.map(user => user.user_socketid);
-      // console.log("-----me?: ", payload.username);
-      // console.log("====in connect====");
-      // console.log(socketList);
       socket.to(socketList).emit('ft_connect', {
-        // 내가 접속했을 때, 친구들의 sockid에 즉각적으로 ft_connect 이벤트를 쏜다.
         status: `${payload.username}`,
       });
     } catch (error) {
