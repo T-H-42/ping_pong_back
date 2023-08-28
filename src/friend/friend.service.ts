@@ -39,42 +39,44 @@ export class FriendService {
   }
   /////////////
   async findFriendList(user: User): Promise<User[]> {
+    // console.log("in find friend list", user);
     const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
     where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
 
     let result = await this.friendRepository.query(query);
     return result;
     }
-    async getFriendSocket(username: string): Promise<string[]> {
-    // const user = await this.friendRepository.findOne({
-    //   where: {
-    //  username
-    //   }})
-    const user = await this.friendRepository.query(`select * from "user" where username='${username}'`);
-    if (!user)
-    {
-      console.log("???????????????????????????????????????");
-      console.log("???????????????????????????????????????");
-    }
-    const friend_list = await this.findFriendList(user[0]);
-  
-    const friendSocketList:string[] = [];
-    friend_list.map((friend) => {
-      // console.log(friend);
-      if (friend.socketid !== null) {
-      friendSocketList.push(friend.socketid);
-      }
-    });
-    // console.log(friendSocketList);
-    return friendSocketList;
-    }
 
-    async getFriendChatSocket(username: string): Promise<string[]> {
+  async getFriendSocket(username: string): Promise<string[]> {
+  // const user = await this.friendRepository.findOne({
+  //   where: {
+  //  username
+  //   }})
+  const user = await this.friendRepository.query(`select * from "user" where username='${username}'`);
+  if (!user)
+  {
+    console.log("???????????????????????????????????????");
+    console.log("???????????????????????????????????????");
+  }
+  const friend_list = await this.findFriendList(user[0]);
+
+  const friendSocketList:string[] = [];
+  friend_list.map((friend) => {
+    // console.log(friend);
+    if (friend.socketid !== null) {
+    friendSocketList.push(friend.socketid);
+    }
+  });
+  // console.log(friendSocketList);
+  return friendSocketList;
+  }
+
+    async getFriendChatSocket(id: number): Promise<string[]> {
       // const user = await this.friendRepository.findOne({
       //   where: {
       //  username
       //   }})
-      const user = await this.friendRepository.query(`select * from "user" where username='${username}'`);
+      const user = await this.friendRepository.query(`select * from "user" where id=${id}`);
       if (!user)
       {
         console.log("???????????????????????????????????????");
