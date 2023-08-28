@@ -90,12 +90,21 @@ export class UserController {
     return await this.userService.changeNickname(user, body?.nickname, res);
   }
 
-  @Get('/token_validation')
+  @Post('/authentication') //body로 2차인증으로 변경하는 유저의 경우에 true, 1차인증으로 변경하는 경우에는 false
+  @UseGuards(AuthGuard())
+  async changeAuthentication(
+    @GetUser() user: User,
+    @Body() body: { two_factor_authentication_status: boolean },
+  )
+  {
+    return await this.userService.changeAuthentication(user, body);
+  }
+
+  @Get('/token_validation') /// False 던지면  FE에서 브라우저 내의 토큰을 삭제해주시고 다시 signin 요청. True 던지면 signin으로
   async tokenValidation(@Headers('authorization') token: string) {
     const jwtToken = token.split(' ')[1];
     //const token = body.token;
     console.log(jwtToken);
-
     return await this.userService.tokenValidation(token);
   }
 }
