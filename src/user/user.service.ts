@@ -493,16 +493,16 @@ export class UserService {
         throw new InternalServerErrorException('Something went wrong!!!');
       }
     user.username = nickname;
-    console.log("user!!!!!!!!!!");
-    console.log(user);
-    console.log("user!!!!!!!!!!");
+    // console.log("user!!!!!!!!!!");
+    // console.log(user);
+    // console.log("user!!!!!!!!!!");
 
     const _res = await this.setToken(user, res);
-    console.log("user!!!!!!!!!!");
+    console.log("in changeNick Name API : user!!!!!!!!!!");
     console.log(_res);
-    console.log("user!!!!!!!!!!");
+    console.log("in changeNick Name API : user!!!!!!!!!!");
 
-    return (_res.send());
+    return (await _res.send());
     
     // return 'succeed';
   }
