@@ -39,7 +39,6 @@ export class FriendService {
   }
   /////////////
   async findFriendList(user: User): Promise<User[]> {
-    // console.log("in find friend list", user);
     const query = `select * from (select case when ${user.id} = "friend"."sendIdId" then "friend"."recvIdId" else "friend"."sendIdId" end as f_id from "friend"
     where (${user.id} = "friend"."sendIdId" and "friend"."accecpt" = true) or (${user.id} = "friend"."recvIdId" and "friend"."accecpt" = true)) as "F" left join "user" on "user"."id" = "F"."f_id";`
 
@@ -76,6 +75,7 @@ export class FriendService {
       //   where: {
       //  username
       //   }})
+      console.log("test getFriendChatSocket", id);
       const user = await this.friendRepository.query(`select * from "user" where id=${id}`);
       if (!user)
       {
