@@ -245,7 +245,6 @@ export class ChatRoomService {
             if (i.chat_sockid !== null)
                 _return.push(i.chat_sockid);//socketid
         });
-
         return _return;
     }
     

@@ -116,6 +116,7 @@ export class UserService {
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
         catchError((error: AxiosError) => {
+          
           if (error.response)
             throw new HttpException(error.response.data, error.response.status);
           else throw new InternalServerErrorException();
@@ -284,9 +285,9 @@ export class UserService {
     );
   }
 
-  async connectChatSocket(username: string, socketid: string) {
+  async connectChatSocket(id: number, socketid: string) {
     //connectChatSocket
-    const query = `update "user" set "chat_sockid"='${socketid}' where "username"='${username}'`;
+    const query = `update "user" set "chat_sockid"='${socketid}' where "id"=${id}`;
     await this.userRepository.query(query);
   }
 
@@ -312,6 +313,15 @@ export class UserService {
     });
     return user;
   }
+  
+  async getUserByUserId(id: number): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: id,
+      },
+    });
+    return user;
+  }
 
   async disconnectPingPongSocket(username: string) {
     await this.userRepository.update(
@@ -320,9 +330,20 @@ export class UserService {
     ); //gamesocketid 또한 null로 바꾸는 기능 필요합니다.
   }
 
-  async disconnectChatSocket(username: string) {
-    await this.userRepository.update({ username }, { chat_sockid: null });
-    const user = await this.getUserByUserName(username);
+  // async disconnectChatSocket(username: string) { ///userId : number
+  //   await this.userRepository.update({ username }, { chat_sockid: null });
+  //   const user = await this.getUserByUserName(username);
+  //   // console.log("test in disconnect");
+  //   // console.log(user);
+  //   // console.log("test in disconnect");
+  //   const query = `delete from "chat_user" where "user_id"=${user.id};`; ///delete chat_user에서 일치하는 것 전부 삭제
+  //   await this.userRepository.query(query);
+  //   // dm은 삭제가 안되더라도, 일반 채팅방일 경우 삭제하면 owner에 대한 처리 어떻게 할지?
+  //   // 혹은 방을 터트릴지... 이런거 다 생각하긴 해야함.
+  // }
+  async disconnectChatSocket(id: number) { ///userId : number
+    await this.userRepository.update({ id }, { chat_sockid: null });
+    const user = await this.getUserByUserId(id);
     // console.log("test in disconnect");
     // console.log(user);
     // console.log("test in disconnect");
@@ -387,7 +408,11 @@ export class UserService {
     return await userProfile;
   }
 
-  async settingStatus(username: string, status: number) {
+  async settingStatus(id: number, status: number) {
+    await this.userRepository.update({ id }, { status });
+  }
+
+  async settingStatusForGame_delete(username: string, status: number) {
     await this.userRepository.update({ username }, { status });
   }
 
@@ -488,6 +513,11 @@ export class UserService {
     const query = `update "user" set "two_factor_authentication_status"=${body.two_factor_authentication_status} where id=${user.id};`;
     return await this.userRepository.query(query);
   }
+
+  // async getUserIdByName(username : string)
+  // {
+  //   const query = `select * from "user" where "username"='${username}';`;
+  // }
 }
 
 

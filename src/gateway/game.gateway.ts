@@ -188,7 +188,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     users.forEach(async username => {
       const user = await this.userService.getUserByUserName(username);
       if (user.socketid) {
-        await this.userService.settingStatus(username, 1);
+        await this.userService.settingStatusForGame_delete(username, 1);
       }
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
@@ -340,7 +340,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const isOwner = users.indexOf(username) === 0 ? true : false;
       socket.join(roomName);
       console.log(socket.id);
-      await this.userService.settingStatus(username, 4);
+      await this.userService.settingStatusForGame_delete(username, 4);
       socket.emit('ft_match_success', {
         success: true,
         usernames,
