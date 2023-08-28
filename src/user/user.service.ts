@@ -95,7 +95,7 @@ export class UserService {
       this.httpService.post(url).pipe(
         catchError((error: AxiosError) => {
           if (error.response) {
-            console.log('test signin');
+            console.log('test signin ' + error.response);
             throw new HttpException(error.response.data, error.response.status);
           } else {
             console.log('이 로그가 찍히면 42서버가 문제');
@@ -373,9 +373,9 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
-  async getUserProfile(username: string) {
+  async getUserProfile(userId: number) {
     const user = await this.userRepository.query(
-      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = '${username}';`,///2차 인증 추가하였습니다. nhwang
+      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "id" = '${userId}';`,///2차 인증 추가하였습니다. nhwang
     );
     //id null?
     const userAchievement = await this.userRepository.query(

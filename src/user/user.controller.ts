@@ -59,12 +59,16 @@ export class UserController {
 
   @Get('/profile')
   @UseGuards(AuthGuard())
-  async getUserProfile(@Query('username') username?: string) {
-    if (!username) {
-      throw new BadRequestException('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다.');
+  async getUserProfile(@GetUser() user:User, @Query('userId') userId?: number | string) {
+    if (userId === 0 || !(user?.id)) {
+      throw new BadRequestException('userId는 1이상의 양수여야 합니다.');
     }
-    console.log('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다. ', username);
-    return await this.userService.getUserProfile(username);
+    //console.log("유저아이디 " + userId);
+    if (!userId) {
+      return await this.userService.getUserProfile(Number(user.id));
+    }
+    //console.log('프로파일 요청 시 유저의 이름에 대한 정보가 필요합니다. ', userId);
+    return await this.userService.getUserProfile(Number(userId));
   }
 
   @UseInterceptors(FileInterceptor('image'))
