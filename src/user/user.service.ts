@@ -373,9 +373,9 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
-  async getUserProfile(userId: number) {
+  async getUserProfile(username: string) {
     const user = await this.userRepository.query(
-      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "id" = '${userId}';`,///2차 인증 추가하였습니다. nhwang
+      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = '${username}';`,///2차 인증 추가하였습니다. nhwang
     );
     //id null?
     const userAchievement = await this.userRepository.query(
