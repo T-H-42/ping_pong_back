@@ -95,7 +95,7 @@ export class UserService {
       this.httpService.post(url).pipe(
         catchError((error: AxiosError) => {
           if (error.response) {
-            console.log('test signin');
+            console.log('test signin ' + error.response);
             throw new HttpException(error.response.data, error.response.status);
           } else {
             console.log('이 로그가 찍히면 42서버가 문제');
@@ -291,18 +291,35 @@ export class UserService {
     await this.userRepository.query(query);
   }
 
-  async connectGameSocket(username: string, socketid: string) {
+  async connectGameSocket(id: number, socketid: string) {
     //connectGameSocket
-    const query = `update "user" set "game_sockid"='${socketid}' where "username"='${username}'`;
+    const query = `update "user" set "game_sockid"='${socketid}' where "id"='${id}'`;
     await this.userRepository.query(query);
   }
 
-  async disconnectGameSocket(username: string | undefined) {
-    //if (!username) {
-    //  return;
-    //}
+  // async connectGameSocket(username: string, socketid: string) {
+  //   //connectGameSocket
+  //   const query = `update "user" set "game_sockid"='${socketid}' where "username"='${username}'`;
+  //   await this.userRepository.query(query);
+  // }
+
+  async disconnectGameSocket(id: number | undefined) {
     console.log('disconnectGameSocket');
-    await this.userRepository.update({ username }, { game_sockid: null });
+    await this.userRepository.update({ id }, { game_sockid: null });
+  }
+
+  // async disconnectGameSocket(username: string | undefined) {
+  //   console.log('disconnectGameSocket');
+  //   await this.userRepository.update({ username }, { game_sockid: null });
+  // }
+
+  async getUserById(id: number): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: id,
+      },
+    });
+    return user;
   }
 
   async getUserByUserName(username: string): Promise<User> {
@@ -410,11 +427,13 @@ export class UserService {
 
   async settingStatus(id: number, status: number) {
     await this.userRepository.update({ id }, { status });
+
+
   }
 
-  async settingStatusForGame_delete(username: string, status: number) {
-    await this.userRepository.update({ username }, { status });
-  }
+  // async settingStatus(username: string, status: number) {
+  //   await this.userRepository.update({ username }, { status });
+  // }
 
   async uploadProfileImage(username: string, image: Express.Multer.File) {
     if (!image) {
