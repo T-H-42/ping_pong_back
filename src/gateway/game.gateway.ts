@@ -10,7 +10,7 @@ import { ChatRoomService } from 'src/chat_room/chat_room.service';
 
 // 게임 설정 인터페이스
 interface GameInformation {
-  users: string[];
+  users: number[];
   maxScore: number;
   speedMode: number;
   timer: NodeJS.Timeout | null;
@@ -64,10 +64,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private gameConfig = config.get('game');
   private logger = new Logger('Gateway');
   // 매칭 큐 배열
-  private matchQueue: string[] = [];
+  private matchQueue: number[] = [];
 
   // 소켓이 속한 룸네임 추출을 위한 맵
-  private RoomConnectedSocket: Map<string, string> = new Map();
+  private RoomConnectedSocket: Map<number, string> = new Map();
 
   // 게임 방들을 담는 배열
   private gameRooms: { [key: string]: GameInformation } = {};
@@ -78,7 +78,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     let payload;
     try {
       payload = await this.getPayload(socket);
-      await this.userService.connectGameSocket(payload.username, socket.id);
+      await this.userService.connectGameSocket(payload.id, socket.id);
     } catch (error) {
       this.logger.error('fail GameGateway handleConnection', error);
     }
@@ -95,10 +95,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.error('fail GameGateway handleDisconnect', error);
       return;
     }
-    this.matchQueue = this.matchQueue.filter(item => item !== payload.username);
+    this.matchQueue = this.matchQueue.filter(item => item !== payload.id);
     await this.handleAbnormalExit(socket, payload);
-    await this.userService.disconnectGameSocket(payload.username);
-    // this.userService.settingStatus(payload.username, 0);
+    await this.userService.disconnectGameSocket(payload.id);
   }
   
     // 매칭 큐에 유저를 넣는 함수
@@ -113,16 +112,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
       // 매칭 큐 들어온 상태로 매칭 잡기 프론트에서 못 막았을 경우
-      if (this.matchQueue.includes(payload.username))
+      if (this.matchQueue.includes(payload.id))
         return { success: false };
-      this.matchQueue.push(payload.username);
+      this.matchQueue.push(payload.id);
 
       // 매칭 큐 2명이면 유효하지 확인 후 그렇지 않으면 큐에서 제거
       if (this.matchQueue.length === 2) {
-        this.matchQueue.forEach(async username => {
-          const user = await this.userService.getUserByUserName(username);
+        this.matchQueue.forEach(async id => {
+          const user = await this.userService.getUserById(id);
           if (user.status !== 1)
-            this.matchQueue = this.matchQueue.filter(item => item !== username);
+            this.matchQueue = this.matchQueue.filter(item => item !== id);
         })
       }
       // 여전히 2명이면 게임방 생성
@@ -144,22 +143,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.logger.error('fail GameGateway exit_match_queue', error);
         return;
       }
-      this.matchQueue = await this.matchQueue.filter(item => item !== payload.username);
+      this.matchQueue = await this.matchQueue.filter(item => item !== payload.id);
       return { success: true };
     }
 
   // 게임룸에 있을 때 비정상 종료한 경우 처리
   async handleAbnormalExit(socket: Socket, payload: any) {
-    const roomName = this.RoomConnectedSocket.get(payload.username);
+    const roomName = this.RoomConnectedSocket.get(payload.id);
     if (roomName) {
       console.log('게임방 만들어진 상태');
       console.log(this.gameRooms[roomName].users);
       let status;
-      const remainingUsername = this.gameRooms[roomName].users.find(item => item !== payload.username);
-      const winnerUser = await this.userService.getUserByUserName(remainingUsername);
-      const loserUser = await this.userService.getUserByUserName(payload.username);
+      const remainingUserId = this.gameRooms[roomName].users.find(item => item !== payload.id);
+      const winnerUser = await this.userService.getUserById(remainingUserId);
+      const loserUser = await this.userService.getUserById(payload.id);
       if (!winnerUser) {
-        console.log(remainingUsername, ' 얘도 나간듯?');
+        console.log(remainingUserId, ' 얘도 나간듯?');
         return;
       }
       if (!this.gameRooms[roomName]) {
@@ -184,19 +183,34 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  handleLeaveRoom(users: string[], roomName: string) {
-    users.forEach(async username => {
-      const user = await this.userService.getUserByUserName(username);
+  handleLeaveRoom(users: number[], roomName: string) {
+    users.forEach(async id => {
+      const user = await this.userService.getUserById(id);
       if (user.socketid) {
-        await this.userService.settingStatusForGame_delete(username, 1);
+        await this.userService.settingStatus(id, 1);
+
       }
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
         socket.leave(roomName);
-      this.RoomConnectedSocket.delete(username);
+      this.RoomConnectedSocket.delete(id);
     });
     delete this.gameRooms[roomName];
   }
+
+  // handleLeaveRoom(users: string[], roomName: string) {
+  //   users.forEach(async username => {
+  //     const user = await this.userService.getUserByUserName(username);
+  //     if (user.socketid) {
+  //       await this.userService.settingStatus(username, 1);
+  //     }
+  //     const socket = this.nsp.sockets.get(user.game_sockid);
+  //     if (socket)
+  //       socket.leave(roomName);
+  //     this.RoomConnectedSocket.delete(username);
+  //   });
+  //   delete this.gameRooms[roomName];
+  // }
     // 방에서 나갈 때 공통으로 처리해야 하는 함수
     // room에서 소켓이 나가는 경우
     @SubscribeMessage('ft_leave_setting_room')
@@ -268,10 +282,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           faillog: '초대한 유저가 채팅방에서 나갔습니다.',
         };
       }
-      const users = [_Data['sender'], _Data['receiver']];
+      const guestUser = await this.userService.getUserByUserName(_Data['receiver']);
+      const users = [ownerUser.id, guestUser.id];
       await this.createGameRoom(users);
     }
-
     // 초대 거절
     else {
       const socket = this.nsp.sockets.get(ownerUser.game_sockid);
@@ -305,7 +319,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
   // 게임룽 생성 및 게임 속성들 초기화
-  async createGameRoom(users: string[]) {
+  async createGameRoom(users: number[]) {
     this.logger.log(`Game 채널 createGameRoom 호출`);
     const roomName = await uuidv4();
     // 방 생성 & socket.join
@@ -326,21 +340,28 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
   // 방에 들어갈 때 공통으로 처리해야 하는 함수
-  async handleJoinRoom(users: string[], roomName: string) {
-    const usernames = { ownerName: users[0], guestName: users[1]}
-    users.forEach(async username => {
+  async handleJoinRoom(users: number[], roomName: string) {
+    const ownerUser = await this.userService.getUserById(users[0]);
+    const guestUser = await this.userService.getUserById(users[1]);
+    const usernames = { 
+      ownerName: ownerUser.username, 
+      guestName: guestUser.username
+    };
+    users.forEach(async id => {
       //소켓 인덱스가 0 이면 오너는 true, 1이면 false
-      this.RoomConnectedSocket.set(username, roomName);
-      const user = await this.userService.getUserByUserName(username);
+      this.RoomConnectedSocket.set(id, roomName);
+      const user = await this.userService.getUserById(id);
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (!socket) {
         console.log('socket 왜 null?');
         return;
       }
-      const isOwner = users.indexOf(username) === 0 ? true : false;
+      const isOwner = users.indexOf(id) === 0 ? true : false;
       socket.join(roomName);
       console.log(socket.id);
-      await this.userService.settingStatusForGame_delete(username, 4);
+
+      await this.userService.settingStatus(id, 4);
+
       socket.emit('ft_match_success', {
         success: true,
         usernames,
@@ -365,8 +386,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.gameRooms[roomName].velocityY; // *= data.speed;
     console.log(`this.gameRooms[roomName].maxScore: ${this.gameRooms[roomName].maxScore}`);
     console.log(`this.gameRooms[roomName].speedMode: ${this.gameRooms[roomName].speedMode}`);
-    // const remainingUsername = users.find(item => item !== payload.username);
-    // 프론트에서 정의한 remainingSocket 에게 발생시킬 이벤트 함수 호출
     socket.to(roomName).emit('ft_game_setting_success', {
       data,
     })
@@ -539,16 +558,29 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async finishGame(gameRoom: GameInformation, roomName: string) {
     console.log('finishGame');
     await clearInterval(gameRoom.timer);
-    const winnerUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
-    const loserUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];
-    const winner = await this.userService.getUserByUserName(winnerUsername);
-    const loser = await this.userService.getUserByUserName(loserUsername);
+    const winnerId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
+    const loserUserId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];
+    const winner = await this.userService.getUserById(winnerId);
+    const loser = await this.userService.getUserById(loserUserId);
     await this.gameService.finishGame(winner, loser);
     await this.userService.leaderScoreUpdate(winner, loser);
     const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
     this.nsp.to(roomName).emit('ft_finish_game', { isOwnerWin });
     return await this.handleLeaveRoom(this.gameRooms[roomName].users, roomName);
   }
+  // async finishGame(gameRoom: GameInformation, roomName: string) {
+  //   console.log('finishGame');
+  //   await clearInterval(gameRoom.timer);
+  //   const winnerUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
+  //   const loserUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];
+  //   const winner = await this.userService.getUserByUserName(winnerUsername);
+  //   const loser = await this.userService.getUserByUserName(loserUsername);
+  //   await this.gameService.finishGame(winner, loser);
+  //   await this.userService.leaderScoreUpdate(winner, loser);
+  //   const isOwnerWin = gameRoom.element.score.left === gameRoom.maxScore ? true : false;
+  //   this.nsp.to(roomName).emit('ft_finish_game', { isOwnerWin });
+  //   return await this.handleLeaveRoom(this.gameRooms[roomName].users, roomName);
+  // }
 
   // socket으로 부터 token을 받아서 payload 추출
   async getPayload(socket: Socket) {
