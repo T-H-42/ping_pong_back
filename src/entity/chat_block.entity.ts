@@ -6,7 +6,7 @@ export class Chat_Block extends BaseEntity {
     id : number;
 
     @Column()
-    chat_room_id : number;
+    index : string;
 
     @Column()
     user_id : number;
@@ -22,7 +22,7 @@ export class Chat_Block extends BaseEntity {
  백에서 가져와야하는 정준
   - 가능한 것을 던져준다
     - 가능한 것?
-	  - muted나 block이 아닌 "유저 리스트" //유저 리스트에 대한 타입은 미정. 화이트 리스트 형태
+    - muted나 block이 아닌 "유저 리스트" //유저 리스트에 대한 타입은 미정. 화이트 리스트 형태
 */
 
 // target
@@ -129,10 +129,25 @@ select user_id, chat_room_id from "chat_mute" where "chat_room_id"=1 and NOW() <
 select "user_id" from "chat_user" where ("user_id" not in (select user_id from "chat_mute" where "chat_room_id"=1 and NOW() < "chat_mute".mute_end_time::timestamp union select blocked_user_id from "chat_block" where "user_id" = 1) and chat_room_id = 1);
 ---- fin -----
 
+ㄴ> 이 fin이랑 일치하는 chat_socket들의 리스트가 필요하고, 이것에서 
+
 --------------------------------------------------------
 SELECT column1, column2, column3, ...
 FROM set_a
 WHERE column1 NOT IN (SELECT column1 FROM subset_b);
+
+
+broadcast.except하는 방법도 있음.
+
+mute면 msg 눌렀을때, 안된다는 모달 띄워줄 수도 있고, 그냥 안되게 할 수도 있음.
+msg 눌렀을때, 바로 띄우기보다, muted 상태를 보내주면 프론트에서 보고나서 처리해야할 것. -> 시간이 지났으면 delete 하는 로직이 있는게 나아보이기도 함.
+
+block으로 except하기만 하면 될듯?
+select "user"."chat_sockid" from (select "user_id" from "chat_block" where "chat_room_id"=1 and "blocked_user_id" = 3) as "A" left join "user" on "user"."id" = "A"."user_id" where "user"."chat_sockid" is not null;
+ㄴ> 나를 block 한 유저들의 socket id >> except할 것임.
+
+create시점하고, join 시점 chat에서 추가하기
+
 
 */
 

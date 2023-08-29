@@ -16,7 +16,13 @@ export class UserRepository extends Repository<User> {
   async createUser(username: string, email: string): Promise<User> {
     // const { username, email };
     console.log('email = ', email);
-    const user = this.create({ username, email, status: 1, two_factor_authentication_status: false });
+    const user = this.create({
+      username,
+      intra_id: username,
+      email,
+      status: 1,
+      two_factor_authentication_status: false,
+    });
 
     try {
       await this.save(user);
@@ -28,6 +34,13 @@ export class UserRepository extends Repository<User> {
       }
     }
     return user;
-    // return user;//없애도 됩니다.
+  }
+
+  async updateProfileImage(username: string, imageName: string) {
+    return await this.update({ username: username }, { image_url: imageName });
+  }
+
+  async updateUsername(nickname: string, intraID: string) {
+    return await this.update({ intra_id: intraID }, { username: nickname });
   }
 }
