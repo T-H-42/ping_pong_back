@@ -6,6 +6,17 @@ import { FriendRepository } from 'src/friend/friend.repository';
 export class FriendService {
   constructor (private friendRepository:FriendRepository) {}
 
+
+  /*
+    // 원본
+    // const query = `insert into "chat_room_msg"("index", "user_id", "message", "time") values('${roomName}',${userid},'${message}', now());`;
+    // await this.chatRoomRepository.query(query);
+    
+    // 바뀐본
+    const query = `insert into "chat_room_msg"("index", "user_id", "message", "time") values($1, $2, $3, now());`;
+    const values = [roomName, userid, message];
+    await this.chatRoomRepository.query(query, values);
+  */
   async acceptFriend(payloadID: number, dataID: number) {
     const query = `update "friend" set "accecpt" = 'true' where "sendIdId" = ${payloadID} and "recvIdId" = ${dataID};`
     await this.friendRepository.query(query);
