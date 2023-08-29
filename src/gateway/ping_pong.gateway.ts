@@ -18,7 +18,7 @@ import { FriendService } from 'src/friend/friend.service';
   namespace: 'ping_pong',
   cors: {
     origin: ['http://front:3000'],
-})
+}})
 export class PingPongGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
