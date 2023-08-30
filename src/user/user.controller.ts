@@ -98,7 +98,9 @@ export class UserController {
     @Res() res: Response,
   ) {
     if (!body?.nickname) {
-      throw new BadRequestException('닉네임을 입력해주세요');
+      throw new BadRequestException({
+        origin_nickname: user.username,
+        error_message: '닉네임을 입력해주세요'});
     }
     return await this.userService.changeNickname(user, body?.nickname, res);
   }

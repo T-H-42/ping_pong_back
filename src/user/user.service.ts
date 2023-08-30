@@ -504,7 +504,10 @@ export class UserService {
         });
       if (res) {
         throw new BadRequestException(
-          '닉네임은 다른 사람의 intraID로 생성 불가능합니다.',
+          {
+            origin_nickname: user.username,
+            error_message: '닉네임은 다른 사람의 intraID로 생성 불가능합니다.'
+          }
         );
       }
     }
@@ -517,7 +520,10 @@ export class UserService {
       }
       catch(error) { // 중복된 닉네임일 경우 해당 에러 객체로 오류 처리
         if (error.code === '23505')
-          throw new BadRequestException('이미 있는 닉네임 입니다.');
+          throw new BadRequestException({
+            origin_nickname: user.username,
+            error_message: '중복된 닉네임 입니다.'
+          });
       };
       if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
         throw new InternalServerErrorException('Something went wrong!!!');
