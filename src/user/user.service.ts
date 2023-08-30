@@ -398,10 +398,13 @@ export class UserService {
     const userQuery = `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = $1;`;///2차 인증 추가하였습니다. nhwang
     const values = [username];
     const user = await this.userRepository.query(userQuery,values);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     //id null?
     console.log("profile1------");
     console.log(user);
-    
+
     const userAchievement = await this.userRepository.query(
       `select "achievement" from achievement where user_id = ${user[0].id};`,
     );
@@ -525,8 +528,11 @@ export class UserService {
             error_message: '중복된 닉네임 입니다.'
           });
       };
-      if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
-        throw new InternalServerErrorException('Something went wrong!!!');
+      if (!nicknameUpdate.affected) { // 영향 안받았으면 update 안된거임
+        throw new InternalServerErrorException({
+          origin_nickname: user.username,
+          error_message: '무언가 잘못되었습니다.'
+        });
       }
     user.username = nickname;
     // console.log("user!!!!!!!!!!");
