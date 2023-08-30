@@ -529,9 +529,9 @@ export class UserService {
           });
       };
       if (!nicknameUpdate.affected) { // 영향 안받았으면 update 안된거임
-        throw new InternalServerErrorException({
+        throw new UnauthorizedException({
           origin_nickname: user.username,
-          error_message: '무언가 잘못되었습니다.'
+          error_message: '없는 유저의 요청입니다.'
         });
       }
     user.username = nickname;
