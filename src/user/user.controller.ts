@@ -51,7 +51,7 @@ export class UserController {
 
   @Post('/certificate')
   async certificateUser(
-    @Body() certificateDto: CertificateDto,
+    @Body(ValidationPipe) certificateDto: CertificateDto,
     @Res() res: Response,
   ) {
     console.log('test_certificate');
