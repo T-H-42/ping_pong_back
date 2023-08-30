@@ -7,6 +7,7 @@ import * as jwt from 'jsonwebtoken';
 import { UserService } from 'src/user/user.service';
 import { GameService } from 'src/game/game.service';
 import { ChatRoomService } from 'src/chat_room/chat_room.service';
+import { FriendService } from 'src/friend/friend.service';
 
 // 게임 설정 인터페이스
 interface GameInformation {
@@ -56,6 +57,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private gameService: GameService,
     private userService: UserService,
+    private friendService: FriendService,
     private chatRoomService: ChatRoomService,
   ) { }
 
@@ -109,11 +111,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         payload = await this.getPayload(socket);
       } catch (error) {
         this.logger.error('fail GameGateway enter_match_queue', error);
-        return;
+        return { checktoken: false };
       }
       // 매칭 큐 들어온 상태로 매칭 잡기 프론트에서 못 막았을 경우
       if (this.matchQueue.includes(payload.id))
-        return { success: false };
+        return { success: false, checktoken: true };
       this.matchQueue.push(payload.id);
 
       // 매칭 큐 2명이면 유효하지 확인 후 그렇지 않으면 큐에서 제거
@@ -129,7 +131,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const users = this.matchQueue.splice(0, 2);
         await this.createGameRoom(users);
       }
-      return { success: true };
+      return { success: true, checktoken: true };
     }
 
     // 매칭 큐에서 유저를 빼는 함수
@@ -141,10 +143,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         payload = await this.getPayload(socket);
       } catch (error) {
         this.logger.error('fail GameGateway exit_match_queue', error);
-        return;
+        return {checktoken: false};
       }
       this.matchQueue = await this.matchQueue.filter(item => item !== payload.id);
-      return { success: true };
+      return { success: true , checktoken: true};
     }
 
   // 게임룸에 있을 때 비정상 종료한 경우 처리
@@ -178,6 +180,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       socket.to(roomName).emit('ft_enemy_leave_room', {
         username: payload.username,
         status,
+        checktoken: true,
       });
       await this.handleLeaveRoom(this.gameRooms[roomName].users, roomName);
     }
@@ -186,11 +189,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleLeaveRoom(users: number[], roomName: string) {
     users.forEach(async id => {
       const user = await this.userService.getUserById(id);
+      const socket = this.nsp.sockets.get(user.game_sockid);
       if (user.socketid) {
         await this.userService.settingStatus(id, 1);
-
+        if (socket)
+        {
+          //////
+          const socketList = await this.friendService.getFriendGameSocket(
+            user.id,
+          );
+          await socket.broadcast.to(socketList).emit('ft_trigger', {
+            success:true, checktoken:true,
+          });
+          console.log("in gameSock leave-",socketList);
+          //////
+        }
       }
-      const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
         socket.leave(roomName);
       this.RoomConnectedSocket.delete(id);
@@ -223,7 +237,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.handleAbnormalExit(socket, payload);
       } catch (error) {
         this.logger.error('fail GameGateway handleLeaveSettingRoom', error);
-        return error;
+        return {checktoken: false};
       }
     }
 ////////////////////////////////chat -> game////////////////////////////////
@@ -237,7 +251,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleInviteGame', error);
-      return;
+      return {checktoken: false};
     }
     const ownerName = payload.username;
     console.log('방장 이름', ownerName);
@@ -248,6 +262,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return {
         success: false,
         faillog: '자기 자신을 초대할 수 없습니다.',
+        checktoken: true,
       }
     }
     // 상대방이 같은 방에 속해있지 않은경우
@@ -255,6 +270,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return {
         success: false,
         faillog: '유저가 채팅방에서 나갔습니다.',
+        checktoken: true,
       };
     }
     // 상대방에게 초대 알림 
@@ -262,9 +278,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log("gamesock in chatroom", ownerName);
     socket.to(guestUser.game_sockid).emit('ft_invite_game', {
       sender: ownerName,
+      checktoken: true,
     });
     return {
       success: true,
+      checktoken: true,
     };
   }
 
@@ -280,6 +298,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return {
           success: false,
           faillog: '초대한 유저가 채팅방에서 나갔습니다.',
+          checktoken: true,
         };
       }
       const guestUser = await this.userService.getUserByUserName(_Data['receiver']);
@@ -292,6 +311,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       socket.emit('ft_invite_game_result', {
         success: false,
         faillog: '상대방이 초대를 거절했습니다.',
+        checktoken: true,
       });
     }
   }
@@ -361,12 +381,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(socket.id);
 
       await this.userService.settingStatus(id, 4);
-
+      ///////
+      const socketList = await this.friendService.getFriendGameSocket(
+        user.id,
+      );
+      console.log("in gameSock join-",socketList);
+      await socket.broadcast.to(socketList).emit('ft_trigger', {
+        success:true,
+        checktoken: true,
+      });
+      //////
       socket.emit('ft_match_success', {
         success: true,
         usernames,
         roomName,
         isOwner,
+        checktoken: true,
       });
     });
   }
@@ -388,6 +418,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`this.gameRooms[roomName].speedMode: ${this.gameRooms[roomName].speedMode}`);
     socket.to(roomName).emit('ft_game_setting_success', {
       data,
+      checktoken: true,
     })
   }
 
@@ -402,6 +433,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // console.log('guestReady',roomName[1]);
     socket.to(roomName).emit('ft_game_ready_success', {
       roomName,
+      checktoken : true,
     })
   }
 
@@ -418,6 +450,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     //game table에 데이터 저장
     socket.to(roomName).emit('ft_game_play_success', {
       success: true,
+      checktoken: true,
     })
     await this.gameService.createGame(this.gameRooms[roomName].users[0], this.gameRooms[roomName].users[1]);
     this.gameRooms[roomName].element = await this.createElement();
