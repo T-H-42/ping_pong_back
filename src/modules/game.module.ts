@@ -5,9 +5,10 @@ import { GameGateway } from 'src/gateway/game.gateway';
 import { GameRepository } from 'src/game/game.repository';
 import { UserModule } from './user.module';
 import { ChatRoomModule } from 'src/chat_room/chat_room.module';
+import { FriendModule } from './friend.module';
 
 @Module({
-  imports: [UserModule, ChatRoomModule],
+  imports: [UserModule, ChatRoomModule,FriendModule],
   providers: [GameService, GameRepository, GameGateway],
   controllers: [GameController]
 })

@@ -7,6 +7,7 @@ import * as jwt from 'jsonwebtoken';
 import { UserService } from 'src/user/user.service';
 import { GameService } from 'src/game/game.service';
 import { ChatRoomService } from 'src/chat_room/chat_room.service';
+import { FriendService } from 'src/friend/friend.service';
 
 // 게임 설정 인터페이스
 interface GameInformation {
@@ -56,6 +57,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private gameService: GameService,
     private userService: UserService,
+    private friendService: FriendService,
     private chatRoomService: ChatRoomService,
   ) { }
 
@@ -186,11 +188,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleLeaveRoom(users: number[], roomName: string) {
     users.forEach(async id => {
       const user = await this.userService.getUserById(id);
+      const socket = this.nsp.sockets.get(user.game_sockid);
       if (user.socketid) {
         await this.userService.settingStatus(id, 1);
-
+        if (socket)
+        {
+          //////
+          const socketList = await this.friendService.getFriendGameSocket(
+            user.id,
+          );
+          await socket.broadcast.to(socketList).emit('ft_trigger', {
+            success:true,
+          });
+          console.log("in gameSock leave-",socketList);
+          //////
+        }
       }
-      const socket = this.nsp.sockets.get(user.game_sockid);
       if (socket)
         socket.leave(roomName);
       this.RoomConnectedSocket.delete(id);
@@ -361,7 +374,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(socket.id);
 
       await this.userService.settingStatus(id, 4);
-
+      ///////
+      const socketList = await this.friendService.getFriendGameSocket(
+        user.id,
+      );
+      console.log("in gameSock join-",socketList);
+      await socket.broadcast.to(socketList).emit('ft_trigger', {
+        success:true,
+      });
+      //////
       socket.emit('ft_match_success', {
         success: true,
         usernames,

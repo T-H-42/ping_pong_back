@@ -94,7 +94,7 @@ export class UserController {
   @UseGuards(AuthGuard())
   async changeNickname(
     @GetUser() user: User,
-    @Body() body: { nickname: string },
+    @Body() body: { nickname?: string },
     @Res() res: Response,
   ) {
     if (!body?.nickname) {

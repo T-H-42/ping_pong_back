@@ -80,6 +80,29 @@ export class FriendService {
   // console.log(friendSocketList);
   return friendSocketList;
   }
+  async getFriendSocketById(id: number): Promise<string[]> {
+    // const user = await this.friendRepository.findOne({
+    //   where: {
+    //  username
+    //   }})
+    const user = await this.friendRepository.query(`select * from "user" where username='${id}'`);
+    if (!user)
+    {
+      console.log("???????????????????????????????????????");
+      console.log("???????????????????????????????????????");
+    }
+    const friend_list = await this.findFriendList(user[0]);
+  
+    const friendSocketList:string[] = [];
+    friend_list.map((friend) => {
+      // console.log(friend);
+      if (friend.socketid !== null) {
+      friendSocketList.push(friend.socketid);
+      }
+    });
+    // console.log(friendSocketList);
+    return friendSocketList;
+    }
 
     async getFriendChatSocket(id: number): Promise<string[]> {
       // const user = await this.friendRepository.findOne({
@@ -105,6 +128,31 @@ export class FriendService {
       // console.log(friendSocketList);
       return friendSocketList;
       }
+
+      async getFriendGameSocket(id: number): Promise<string[]> {
+        // const user = await this.friendRepository.findOne({
+        //   where: {
+        //  username
+        //   }})
+        console.log("test getFriendGameSocket", id);
+        const user = await this.friendRepository.query(`select * from "user" where id=${id}`);
+        if (!user)
+        {
+          console.log("???????????????????????????????????????");
+          console.log("???????????????????????????????????????");
+        }
+        const friend_list = await this.findFriendList(user[0]);
+      
+        const friendSocketList:string[] = [];
+        friend_list.map((friend) => {
+          // console.log(friend);
+          if (friend.game_sockid !== null) {
+          friendSocketList.push(friend.game_sockid);
+          }
+        });
+        // console.log(friendSocketList);
+        return friendSocketList;
+        }
 
     async isFriend(userId: number,targetUserId: number)
     {
