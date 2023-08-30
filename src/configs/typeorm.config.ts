@@ -4,7 +4,7 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'postgres',
   host: 'localhost',
   port: 5432,
-  username: 'nhwang', //세팅 변경시 마다 바꾸세요
+  username: 'postgres', //세팅 변경시 마다 바꾸세요
   password: 'postgres',
   database: 'websocket',
   entities: [__dirname + '/../**/*.entity.{js,ts}'],

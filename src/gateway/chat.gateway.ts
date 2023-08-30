@@ -64,7 +64,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.4:3000'],
+    origin: ['http://10.19.210.104:3000'],
 
   },
 })
