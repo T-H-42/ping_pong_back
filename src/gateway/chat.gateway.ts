@@ -1193,8 +1193,9 @@ export class ChatGateway
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
     this.logger.log(token);
-    const serverConfig = config.get('jwt');
-    const secret = serverConfig.secret;
+    // const serverConfig = config.get('jwt');
+    // const secret = serverConfig.secret;
+    const secret = process.env.JWT_SECRET;
     return (await jwt.verify(token, secret)) as any;
   }
 

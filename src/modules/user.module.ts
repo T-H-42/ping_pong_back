@@ -23,7 +23,8 @@ import { MulterConfigService } from 'src/utils/multer.config';
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret: config.get('jwt').secret,
+      // secret: config.get('jwt').secret,
+      secret: process.env.JWT_SECRET,
       signOptions: {
         expiresIn: 60*600,///60 * 600 vs 1
       },

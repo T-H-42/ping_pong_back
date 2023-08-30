@@ -85,12 +85,12 @@ export class UserService {
     //findOne
     // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
-    const oauthConfig = config.get('oauth');
+    // const oauthConfig = config.get('oauth');
     // console.log(
     //   '======================================== sigin in ===============================',
     // );
-    console.log('redir', oauthConfig.oauth_redirect_uri);
-    const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${oauthConfig.oauth_id}&client_secret=${oauthConfig.oauth_secret}&code=${code}&redirect_uri=${oauthConfig.oauth_redirect_uri}`; //http://10.19.210.104:3000/redirect;
+    // console.log('redir', oauthConfig.oauth_redirect_uri);
+    const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${process.env.REACT_APP_OAUTH_ID}&client_secret=${process.env.REACT_APP_OAUTH_SECRET}&code=${code}&redirect_uri=${process.env.REACT_APP_OAUTH_REDIRECT_URI}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
       this.httpService.post(url).pipe(
         catchError((error: AxiosError) => {
@@ -491,12 +491,14 @@ export class UserService {
 
   async changeNickname(user:User, nickname: string, res: Response) {
     if (user.intra_id !== nickname) {
-      const oath = config.get('oauth');
+      // const oath = config.get('oauth');
       const token = await axios
         .post('https://api.intra.42.fr/oauth/token', {
           grant_type: 'client_credentials',
-          client_id: oath.oauth_id,
-          client_secret: oath.oauth_secret,
+          client_id: process.env.REACT_APP_OAUTH_ID,
+          client_secret: process.env.REACT_APP_OAUTH_SECRET,
+          // client_id: oath.oauth_id,
+          // client_secret: oath.oauth_secret,
         })
         .then((res) => {
           return res.data.access_token;

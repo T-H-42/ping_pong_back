@@ -17,6 +17,7 @@ import { GameModule } from './modules/game.module';
 import { ChatRoomModule } from './chat_room/chat_room.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { join } from 'path';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public', 'uploads'),
     }),
+    ConfigModule.forRoot({ignoreEnvFile: true, isGlobal: true}),
   ],
   controllers: [AppController],
   providers: [AppService], //FriendGatewayGateway, ChatGateway
