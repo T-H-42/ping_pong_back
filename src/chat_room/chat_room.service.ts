@@ -126,17 +126,12 @@ export class ChatRoomService {
         console.log("==========================================");
 
 
-        //select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = 'hyna,nhwang'; ->>>
-        //ㄴ> 차단안한 유저의 아이디와 메시지, time as "B"
-
-
-        //select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = 'hyna,nhwang') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;
-
+        // origin
+        // const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = '${roomName}' and "user_id" = ${userId}) and index = '${roomName}')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = '${roomName}') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
         
-        // const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = '${roomName}' and "user_id" = ${userId}) and "chat_user"."user_id"!=${userId} and index = '${roomName}')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = '${roomName}') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
-        const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = '${roomName}' and "user_id" = ${userId}) and index = '${roomName}')) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = '${roomName}') as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
-        
-        return await this.chatRoomRepository.query(query);
+        const query = `select "user"."username", "B"."message" from (select "message", "time", "chat_room_msg"."user_id" from (select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = $1 and "user_id" = ${userId}) and index = $1)) as "A" left join "chat_room_msg" on "chat_room_msg"."user_id" = "A"."user_id" where "index" = $1) as "B" left join "user" on "user"."id" = "B"."user_id" order by "B"."time" asc;`;
+        const values = [roomName]
+        return await this.chatRoomRepository.query(query,values);
     }
 
     async getRoomList() ///ban이어도 상관없이 보이기는 할 예정
