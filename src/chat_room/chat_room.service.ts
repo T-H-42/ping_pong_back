@@ -10,11 +10,14 @@ export class ChatRoomService {
     
     async createDmRoom(userid : number, roomName : string)
     {
-        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, index) values (${userid}, 3, null, 2, 0, '${roomName}');`;
-        await this.chatRoomRepository.query(query);
+        // const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, index) values (${userid}, 3, null, 2, 0, '${roomName}');`;
+        const query = `insert into "chat_room"(owner_id, room_stat, password, limit_user, curr_user, index) values (${userid}, 3, null, 2, 0, $1);`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
         ////
-        const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = '${roomName}';`
-        console.log("createRoom user",await this.chatRoomRepository.query(test));
+        // const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = '${roomName}';`
+        const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = $1;`
+        console.log("createRoom user",await this.chatRoomRepository.query(test, values));
         ///
     }
 
@@ -69,20 +72,26 @@ export class ChatRoomService {
     async leaveUserFromRoom(userid : number, roomName : string)
     {
         console.log("in leave User in ROOM");
-        const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
-        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
+        // const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
+        // update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         
-        const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
-        const chatroom = await this.chatRoomRepository.query(query2);
+        // const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
+        const query2 = `select * from "chat_room" where "index" = $1;`;
+        const values = [roomName];
+        const chatroom = await this.chatRoomRepository.query(query2,values);
         if (chatroom[0].curr_user === 0)
             return ;
-        await this.chatRoomRepository.query(query);
+        const query = `delete from "chat_user" where "user_id"=${userid} and "index"=$1; 
+        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1`;
+        await this.chatRoomRepository.query(query, values);
     }
     
     async isNeedDmNoti(userid : number, roomName : string)
     {
-        const query = `select user_id from "chat_user" where "user_id"=${userid} and "index" = '${roomName}';`;
-        const ret = await this.chatRoomRepository.query(query);
+        // const query = `select user_id from "chat_user" where "user_id"=${userid} and "index" = '${roomName}';`;
+        const query = `select user_id from "chat_user" where "user_id"=${userid} and "index" = $1;`;
+        const values = [roomName];
+        const ret = await this.chatRoomRepository.query(query, values);
         console.log("======= isNeedDmNoti? =======");
         console.log(ret);
         console.log("======= isNeedDmNoti? =======");
@@ -113,8 +122,10 @@ export class ChatRoomService {
 
     async getDmMessage(roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌.
     {
-        const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
-        return await this.chatRoomRepository.query(query);
+        // const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"='${roomName}') as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        const query = `select "user"."username", "A"."message" from (select message,user_id,time from "chat_room_msg" where "index"=$1) as "A" left join "user" on ("A"."user_id" = "user"."id") order by "A"."time" asc;`;
+        const values = [roomName];
+        return await this.chatRoomRepository.query(query, values);
     }
 
     async getChatMessage(userId : number, roomName : string) //객체들의 배열로 갈것! 시간 순 정렬한 값이므로, 프론트는 그대로 보여주면 됌. //내가 블록한 사람 빼고!
@@ -186,26 +197,34 @@ export class ChatRoomService {
 
     async deleteChatLog(roomName : string)
     {
-        const query = `delete from "chat_room_msg" where "index" = '${roomName}';`;
-        await this.chatRoomRepository.query(query);
+        // const query = `delete from "chat_room_msg" where "index" = '${roomName}';`;
+        const query = `delete from "chat_room_msg" where "index" = $1;`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
 
     async isDm(roomName : string)
     {
-        const query = `select "index" from "chat_room" where "room_stat"=3 and "index" = '${roomName}';`;
-        return (await this.chatRoomRepository.query(query));
+        // const query = `select "index" from "chat_room" where "room_stat"=3 and "index" = '${roomName}';`;
+        const query = `select "index" from "chat_room" where "room_stat"=3 and "index" = $1;`;
+        const values = [roomName];
+        return (await this.chatRoomRepository.query(query, values));
     }
 
     async deleteChatUserRoom(roomName : string)
     {
-        const query = `delete from "chat_user" where "index" = '${roomName}';`;
-        await this.chatRoomRepository.query(query);
+        // const query = `delete from "chat_user" where "index" = '${roomName}';`;
+        const query = `delete from "chat_user" where "index" = $1;`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
 
     async deleteBanUserChatRoom(roomName : string)
     {
-        const query = `delete from "chat_ban" where "index" = '${roomName}';`;
-        await this.chatRoomRepository.query(query);
+        // const query = `delete from "chat_ban" where "index" = '${roomName}';`;
+        const query = `delete from "chat_ban" where "index" = $1;`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
     
     async deleteBlockChatRoom(roomName : string)
@@ -216,8 +235,10 @@ export class ChatRoomService {
     
     async deleteChatRoom(roomName : string)
     {
-        const query = `delete from "chat_room" where "index" = '${roomName}';`;
-        await this.chatRoomRepository.query(query);
+        // const query = `delete from "chat_room" where "index" = '${roomName}';`;
+        const query = `delete from "chat_room" where "index" = $1;`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
     ///////////////////////채팅방 정보 Scope!///////////////////////
     
@@ -241,8 +262,11 @@ export class ChatRoomService {
         //select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10;
         //ㄴ> 날 블록한 유저 id -> as A
         // select "user"."socketid" from (select "user_id" from "chat_block" where index = 'hyna,nhwang' and "blocked_user_id" = 10) as "A" left join "user" on "user"."id" = "A"."user_id";
-        const query = `select "user"."chat_sockid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
-        const ret = await this.chatRoomRepository.query(query);
+        
+        // const query = `select "user"."chat_sockid" from (select "user_id" from "chat_block" where index = '${roomName}' and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const query = `select "user"."chat_sockid" from (select "user_id" from "chat_block" where index = $1 and "blocked_user_id" = ${userId}) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const values = [roomName];
+        const ret = await this.chatRoomRepository.query(query, values);
         let _return = [];
         ret.map((i) => {
             if (i.chat_sockid !== null)
@@ -272,8 +296,10 @@ export class ChatRoomService {
     async isMuted(roomName : string, userId : number){
         //상황에 따라 이벤트 쏠수 있도록? -> ft_message에서 처리하는 방식이라면 여기서 로직 추가
         
-        const query = `select "mute_end_time" from "chat_user" where "index" = '${roomName}' and "user_id" = ${userId} and "mute_end_time"::timestamp > NOW();`;
-        const obj = await this.chatRoomRepository.query(query);
+        // const query = `select "mute_end_time" from "chat_user" where "index" = '${roomName}' and "user_id" = ${userId} and "mute_end_time"::timestamp > NOW();`;
+        const query = `select "mute_end_time" from "chat_user" where "index" = $1 and "user_id" = ${userId} and "mute_end_time"::timestamp > NOW();`;
+        const values = [roomName];
+        const obj = await this.chatRoomRepository.query(query,values);
         if (obj.length===0)
             return false;
         return true;
@@ -281,20 +307,26 @@ export class ChatRoomService {
 
     async checkRight(roomName : string, targetUserId : number)
     {
-        const query = `select "right" from "chat_user" where "index" = '${roomName}' and  "user_id"=${targetUserId};`;
-        const obj = await this.chatRoomRepository.query(query);
+        // const query = `select "right" from "chat_user" where "index" = '${roomName}' and  "user_id"=${targetUserId};`;
+        const query = `select "right" from "chat_user" where "index" = $1 and  "user_id"=${targetUserId};`;
+        const values = [roomName];
+        const obj = await this.chatRoomRepository.query(query, values);
         return (obj[0].right);
     }
     async setAdmin(roomName : string, targetUserId :number)
     {
-        const query = `update "chat_user" set "right" = 1 where "index" = '${roomName}' and "user_id" = ${targetUserId}`;
-        await this.chatRoomRepository.query(query);
+        // const query = `update "chat_user" set "right" = 1 where "index" = '${roomName}' and "user_id" = ${targetUserId}`;
+        const query = `update "chat_user" set "right" = 1 where "index" = $1 and "user_id" = ${targetUserId}`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query,values);
     }
 
     async getUserRight(userId : number,roomName : string)
     {
-        const query = `select "right" from "chat_user" where "index"='${roomName}' and "user_id" = ${userId}`;
-        const ret = await this.chatRoomRepository.query(query);
+        // const query = `select "right" from "chat_user" where "index"='${roomName}' and "user_id" = ${userId}`;
+        const query = `select "right" from "chat_user" where "index"=$1 and "user_id" = ${userId}`;
+        const values = [roomName];
+        const ret = await this.chatRoomRepository.query(query, values);
         return (ret[0].right);
     }
 
@@ -308,21 +340,28 @@ export class ChatRoomService {
 
     async setBlock(roomName : string, targetUserId : number, userId : number)
     {
-        const isAlreadyBlocked = await this.chatRoomRepository.query(`select * from "chat_block" where "user_id" = ${userId} and "index"='${roomName}' and "blocked_user_id"=${targetUserId};`);
+        // const isAlreadyBlocked = await this.chatRoomRepository.query(`select * from "chat_block" where "user_id" = ${userId} and "index"='${roomName}' and "blocked_user_id"=${targetUserId};`);
+        const values = [roomName];
+        const isAlreadyBlocked = await this.chatRoomRepository.query(`select * from "chat_block" where "user_id" = ${userId} and "index"=$1 and "blocked_user_id"=${targetUserId};`, values);
+        
         if (isAlreadyBlocked.length !== 0 )//이미 block인 경우
             return false;
-        const query = `insert into "chat_block"("user_id","blocked_user_id","index") values(${userId}, ${targetUserId}, '${roomName}');`;
-        await this.chatRoomRepository.query(query);
+        // const query = `insert into "chat_block"("user_id","blocked_user_id","index") values(${userId}, ${targetUserId}, '${roomName}');`;
+        const query = `insert into "chat_block"("user_id","blocked_user_id","index") values(${userId}, ${targetUserId}, $1);`;
+        await this.chatRoomRepository.query(query, values);
         return true;
     }
 
     async setBan(roomName : string, targetUserId : number)
     {
-        const isAlreadyBaned = await this.chatRoomRepository.query(`select * from "chat_ban" where "ban_user_id" = ${targetUserId} and "index"='${roomName}';`);
+        const values = [roomName];
+        const isAlreadyBaned = await this.chatRoomRepository.query(`select * from "chat_ban" where "ban_user_id" = ${targetUserId} and "index"=$1;`, values);
+        // const isAlreadyBaned = await this.chatRoomRepository.query(`select * from "chat_ban" where "ban_user_id" = ${targetUserId} and "index"='${roomName}';`);
         if (isAlreadyBaned.length !== 0 )//이미 block인 경우
             return false;
-        const query = `insert into "chat_ban"("ban_user_id","index") values(${targetUserId}, '${roomName}');`;
-        await this.chatRoomRepository.query(query);
+        // const query = `insert into "chat_ban"("ban_user_id","index") values(${targetUserId}, '${roomName}');`;
+        const query = `insert into "chat_ban"("ban_user_id","index") values(${targetUserId}, $1);`;
+        await this.chatRoomRepository.query(query, values);
         return true;
     }
 
@@ -349,8 +388,10 @@ export class ChatRoomService {
         `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
         */
 
-        const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
-        const ret = await this.chatRoomRepository.query(query);
+        // const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = '${roomName}' and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+        const query = `select "user"."username", "user"."chat_sockid" from (select * from "chat_user" where "index" = $1 and NOW() > "mute_end_time"::timestamp) as "A" left join "user" on "A"."user_id" = "user"."id";`;
+        const values = [roomName];
+        const ret = await this.chatRoomRepository.query(query, values);
         if (ret.length!==0)
         {
             const query2 = `update "chat_user" set "mute_end_time"=null where  NOW() > "mute_end_time"::timestamp;`;
@@ -379,15 +420,19 @@ export class ChatRoomService {
 
     async updateRoomPassword(userId : number, roomName : string, hashedPassword : string)
     {
-        const query = `update "chat_room" set "password"='${hashedPassword}',"room_stat"=1 where "index"='${roomName}' and "owner_id" = ${userId};`;
-        await this.chatRoomRepository.query(query);
+        // const query = `update "chat_room" set "password"='${hashedPassword}',"room_stat"=1 where "index"='${roomName}' and "owner_id" = ${userId};`;
+        const query = `update "chat_room" set "password"='${hashedPassword}',"room_stat"=1 where "index"=$1 and "owner_id" = ${userId};`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
 
     async deleteRoomPassword(userId : number, roomName : string)
     {
         const hashedPassword = await this.hashPassword('');
-        const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = '${roomName}' and "owner_id" = ${userId};`;
-        await this.chatRoomRepository.query(query);
+        // const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = '${roomName}' and "owner_id" = ${userId};`;
+        const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = $1 and "owner_id" = ${userId};`;
+        const values = [roomName];
+        await this.chatRoomRepository.query(query, values);
     }
 
     // async preventInjection(userInputAny : any)
