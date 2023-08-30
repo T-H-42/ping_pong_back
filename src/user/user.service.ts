@@ -403,7 +403,8 @@ export class UserService {
     const userQuery = `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = $1;`;///2차 인증 추가하였습니다. nhwang
     const values = [username];
     const user = await this.userRepository.query(userQuery,values);
-    if (!user) {
+
+    if (!user || user.length === 0) {
       throw new NotFoundException('User not found');
     }
     //id null?
@@ -417,7 +418,7 @@ export class UserService {
 
     const userGameHistory = await this.userRepository.query(
       // `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
-      `select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser";`
+      `select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser" order by "B"."time" desc limit 5;`
       /*
       select winner, loser, time from game where (game.finished and (game.winner = 25 or game.loser = 25));
       ㄴ> as A
@@ -425,6 +426,8 @@ export class UserService {
       ㄴ> as B
       select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = 25 or game.loser = 25))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser";
       ㄴ->final
+
+    
       */
       );
     console.log("profile3------");
@@ -559,6 +562,17 @@ export class UserService {
   {
     const query = `update "user" set "two_factor_authentication_status"=${body.two_factor_authentication_status} where id=${user.id};`;
     return await this.userRepository.query(query);
+  }
+
+  async catchErrorFunction(sockid: string)
+  {
+    const query = `select * from "user" where "socketid"='${sockid}' or "chat_sockid"='${sockid}' or "game_sockid"='${sockid}';`;
+    const user = await this.userRepository.query(query);
+    if (user.length === 0)
+      return ;
+    //user[0].id
+    const query2 = `update "user" set "socketid"=null, "chat_sockid"=null, "game_sockid"=null,status=0 where id=${user[0].id};`;
+    await this.userRepository.query(query2);
   }
 
   // async getUserIdByName(username : string)

@@ -95,10 +95,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
+      await this.userService.catchErrorFunction(socket.id);/////nhwang
       return;
     }
     this.matchQueue = this.matchQueue.filter(item => item !== payload.id);
     await this.handleAbnormalExit(socket, payload);
+    
+
     await this.userService.disconnectGameSocket(payload.id);
   }
   
