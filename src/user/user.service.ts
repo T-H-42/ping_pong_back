@@ -168,16 +168,21 @@ export class UserService {
       username: user.username,
       id: user.id,
     };
-    
-    ////////////중복 로그인 방지 위해 추가했습니다. 던지는 것 까지는 잘되는것 같은데, 프론트에서 받는 부분 구현되면 될 것 같습니다.-nhwang
-    
-      // console.log('===========ttttttt2');
-      // if (user.socketid !== null)
-      // {
-      //   console.log('===========ttttttt3',user.socketid);
-      //   throw new UnauthorizedException('Already Logged in');
-      // }
-    
+    if (user.socketid !== null)
+    {
+      console.log('===========ttttttt3',user.socketid);
+      throw new UnauthorizedException('Already Logged in');
+    }
+    //////////////중복 로그인 방지 위해 추가했습니다. 던지는 것 까지는 잘되는것 같은데, 프론트에서 받는 부분 구현되면 될 것 같습니다.-nhwang
+    // try {
+    //   console.log('===========ttttttt2');
+    //   if (user.socketid !== null)
+    //   {
+    //     console.log('===========ttttttt3',user.socketid);
+    //     return new UnauthorizedException('Already Logged in');
+    //   }
+    // }
+
     // catch(error)
     // {
     //   console.log('===========ttttttt4');
