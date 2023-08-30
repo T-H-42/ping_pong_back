@@ -182,10 +182,11 @@ export class UserService {
     //     return new UnauthorizedException('Already Logged in');
     //   }
     // }
+
     // catch(error)
     // {
     //   console.log('===========ttttttt4');
-    //   return new UnauthorizedException('UnauthorizedException!');
+    //   thorw new UnauthorizedException('UnauthorizedException!');
     // }
 
     const accessToken = await this.jwtService.sign(payload);
@@ -399,13 +400,21 @@ export class UserService {
   }
 
   async getUserProfile(username: string) {
-    const user = await this.userRepository.query(
-      `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = '${username}';`,///2차 인증 추가하였습니다. nhwang
-    );
+    const userQuery = `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = $1;`;///2차 인증 추가하였습니다. nhwang
+    const values = [username];
+    const user = await this.userRepository.query(userQuery,values);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     //id null?
+    console.log("profile1------");
+    console.log(user);
+
     const userAchievement = await this.userRepository.query(
       `select "achievement" from achievement where user_id = ${user[0].id};`,
     );
+    console.log("profile2------");
+
     const userGameHistory = await this.userRepository.query(
       // `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
       `select "B"."winuser", "B"."time", "user"."username" as "loseuser" from (select "user"."username" as "winuser", "A"."loser", "A"."time" from (select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}))) as "A" left join "user" on "user"."id" = "A"."winner") as "B" left join "user" on "user"."id" = "B"."loser";`
@@ -418,14 +427,20 @@ export class UserService {
       ㄴ->final
       */
       );
+    console.log("profile3------");
+
     const userProfile = await {
       ...user[0],
       achievements: [] as string[],
       userGameHistory,
     };
+    console.log("profile4------");
+
     await userAchievement.map((achievement) =>
       userProfile.achievements.push(achievement.achievement),
     );
+    console.log("profile5");
+
     return await userProfile;
   }
 
@@ -497,7 +512,10 @@ export class UserService {
         });
       if (res) {
         throw new BadRequestException(
-          '닉네임은 다른 사람의 intraID로 생성 불가능합니다.',
+          {
+            origin_nickname: user.username,
+            error_message: '닉네임은 다른 사람의 intraID로 생성 불가능합니다.'
+          }
         );
       }
     }
@@ -510,10 +528,16 @@ export class UserService {
       }
       catch(error) { // 중복된 닉네임일 경우 해당 에러 객체로 오류 처리
         if (error.code === '23505')
-          throw new BadRequestException('이미 있는 닉네임 입니다.');
+          throw new BadRequestException({
+            origin_nickname: user.username,
+            error_message: '중복된 닉네임 입니다.'
+          });
       };
-      if (!nicknameUpdate.affected) { // 영향 안받았으면 updqte 안된거임
-        throw new InternalServerErrorException('Something went wrong!!!');
+      if (!nicknameUpdate.affected) { // 영향 안받았으면 update 안된거임
+        throw new UnauthorizedException({
+          origin_nickname: user.username,
+          error_message: '없는 유저의 요청입니다.'
+        });
       }
     user.username = nickname;
     // console.log("user!!!!!!!!!!");

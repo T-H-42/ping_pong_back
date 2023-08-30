@@ -29,6 +29,7 @@ import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { brotliCompress } from 'zlib';
+import { NicknameDto } from './dto/nickName.dto';
 
 ///!!!!RESTful -> no verb,method use noun.
 
@@ -50,7 +51,7 @@ export class UserController {
 
   @Post('/certificate')
   async certificateUser(
-    @Body() certificateDto: CertificateDto,
+    @Body(ValidationPipe) certificateDto: CertificateDto,
     @Res() res: Response,
   ) {
     console.log('test_certificate');
@@ -94,11 +95,13 @@ export class UserController {
   @UseGuards(AuthGuard())
   async changeNickname(
     @GetUser() user: User,
-    @Body() body: { nickname: string },
+    @Body(ValidationPipe) body: NicknameDto,
     @Res() res: Response,
   ) {
     if (!body?.nickname) {
-      throw new BadRequestException('닉네임을 입력해주세요');
+      throw new BadRequestException({
+        origin_nickname: user.username,
+        error_message: '닉네임을 입력해주세요'});
     }
     return await this.userService.changeNickname(user, body?.nickname, res);
   }
