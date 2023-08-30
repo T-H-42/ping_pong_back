@@ -29,6 +29,7 @@ import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { brotliCompress } from 'zlib';
+import { NicknameDto } from './dto/nickName.dto';
 
 ///!!!!RESTful -> no verb,method use noun.
 
@@ -94,7 +95,7 @@ export class UserController {
   @UseGuards(AuthGuard())
   async changeNickname(
     @GetUser() user: User,
-    @Body() body: { nickname?: string },
+    @Body(ValidationPipe) body: NicknameDto,
     @Res() res: Response,
   ) {
     if (!body?.nickname) {

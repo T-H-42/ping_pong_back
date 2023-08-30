@@ -107,6 +107,7 @@ export class ChatGateway
       );
     } catch (error) {
       this.logger.error('1. validate_token fail in chat', error);
+      return ;
       // socket.disconnect();
     }
     const socketList = await this.friendService.getFriendChatSocket(
