@@ -457,7 +457,7 @@ export class UserService {
       username,
       image.filename,
     );
-    if (!imageUpdate.affected) throw new InternalServerErrorException();
+    if (!imageUpdate.affected) throw new UnauthorizedException();
     return 'succeed';
   }
 
