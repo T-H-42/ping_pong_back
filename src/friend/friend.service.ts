@@ -6,6 +6,17 @@ import { FriendRepository } from 'src/friend/friend.repository';
 export class FriendService {
   constructor (private friendRepository:FriendRepository) {}
 
+
+  /*
+    // 원본
+    // const query = `insert into "chat_room_msg"("index", "user_id", "message", "time") values('${roomName}',${userid},'${message}', now());`;
+    // await this.chatRoomRepository.query(query);
+    
+    // 바뀐본
+    const query = `insert into "chat_room_msg"("index", "user_id", "message", "time") values($1, $2, $3, now());`;
+    const values = [roomName, userid, message];
+    await this.chatRoomRepository.query(query, values);
+  */
   async acceptFriend(payloadID: number, dataID: number) {
     const query = `update "friend" set "accecpt" = 'true' where "sendIdId" = ${payloadID} and "recvIdId" = ${dataID};`
     await this.friendRepository.query(query);
@@ -69,6 +80,29 @@ export class FriendService {
   // console.log(friendSocketList);
   return friendSocketList;
   }
+  async getFriendSocketById(id: number): Promise<string[]> {
+    // const user = await this.friendRepository.findOne({
+    //   where: {
+    //  username
+    //   }})
+    const user = await this.friendRepository.query(`select * from "user" where username='${id}'`);
+    if (!user)
+    {
+      console.log("???????????????????????????????????????");
+      console.log("???????????????????????????????????????");
+    }
+    const friend_list = await this.findFriendList(user[0]);
+  
+    const friendSocketList:string[] = [];
+    friend_list.map((friend) => {
+      // console.log(friend);
+      if (friend.socketid !== null) {
+      friendSocketList.push(friend.socketid);
+      }
+    });
+    // console.log(friendSocketList);
+    return friendSocketList;
+    }
 
     async getFriendChatSocket(id: number): Promise<string[]> {
       // const user = await this.friendRepository.findOne({
@@ -94,6 +128,31 @@ export class FriendService {
       // console.log(friendSocketList);
       return friendSocketList;
       }
+
+      async getFriendGameSocket(id: number): Promise<string[]> {
+        // const user = await this.friendRepository.findOne({
+        //   where: {
+        //  username
+        //   }})
+        console.log("test getFriendGameSocket", id);
+        const user = await this.friendRepository.query(`select * from "user" where id=${id}`);
+        if (!user)
+        {
+          console.log("???????????????????????????????????????");
+          console.log("???????????????????????????????????????");
+        }
+        const friend_list = await this.findFriendList(user[0]);
+      
+        const friendSocketList:string[] = [];
+        friend_list.map((friend) => {
+          // console.log(friend);
+          if (friend.game_sockid !== null) {
+          friendSocketList.push(friend.game_sockid);
+          }
+        });
+        // console.log(friendSocketList);
+        return friendSocketList;
+        }
 
     async isFriend(userId: number,targetUserId: number)
     {

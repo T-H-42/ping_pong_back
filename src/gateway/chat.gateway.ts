@@ -1,4 +1,4 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -64,7 +64,7 @@ let createdRooms: string[] = [];
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: ['http://10.15.1.4:3000'],
+    origin: ['http://10.19.210.104:3000'],
 
   },
 })
@@ -107,6 +107,7 @@ export class ChatGateway
       );
     } catch (error) {
       this.logger.error('1. validate_token fail in chat', error);
+      return ;
       // socket.disconnect();
     }
     const socketList = await this.friendService.getFriendChatSocket(
@@ -213,7 +214,8 @@ export class ChatGateway
         return { success: false, faillog: `채팅방 이름을 지정해야합니다.` };
       if (_Data['limitUser'] < 1 || _Data['limitUser'] > 8)
         return { success: false, faillog: `제한인원의 범위는 1~8 입니다.` };
-  
+      if (_Data['status']==1 && _Data['password']==='')
+        return { success: false, faillog: `비밀번호를 설정해야 합니다.` };
     // try {
     //   await this.chatRoomService.preventInjection(_Data);
     // } catch (e: any) {
