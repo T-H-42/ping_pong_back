@@ -79,6 +79,7 @@ export class PingPongGateway
       });
     } catch (error) {
       this.logger.error('validate_token fail', error);
+      await this.userService.catchErrorFunction(socket.id);/////
       return { checktoken: false };
     }
   }
