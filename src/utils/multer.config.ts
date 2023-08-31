@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { MulterOptionsFactory } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import * as path from 'path';
@@ -22,6 +22,19 @@ export class MulterConfigService implements MulterOptionsFactory {
   }
 
   createMulterOptions(): MulterOptions | Promise<MulterOptions> {
+    const fileFilter = (req, file, cb) => {
+      const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      
+      if (allowedExtensions.includes(fileExtension)) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+    };
+
+
     const dirPath = this.dirPath;
     const option = {
       storage: multer.diskStorage({
@@ -35,6 +48,7 @@ export class MulterConfigService implements MulterOptionsFactory {
         },
       }),
       limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter
     };
     return option;
   }

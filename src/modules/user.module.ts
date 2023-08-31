@@ -26,7 +26,7 @@ import { MulterConfigService } from 'src/utils/multer.config';
       // secret: config.get('jwt').secret,
       secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: 60*600,///60 * 600 vs 1
+        expiresIn: 60 * 6000
       },
     }),
     TypeOrmModule.forFeature([UserRepository]),

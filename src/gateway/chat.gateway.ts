@@ -138,7 +138,11 @@ export class ChatGateway
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('get payload err in chatDisconnect');
-      await this.userService.catchErrorFunction(socket.id);/////
+      // socket.emit('roomTokenError',{});
+      const roomName = await this.chatRoomService.catchErrorRoom(socket.id);
+      if (roomName)
+        socket.leave(roomName);
+      await this.userService.catchErrorFunctionChat(socket.id);/////
       socket.disconnect();
       return { checktoken:false };
     }
@@ -169,9 +173,9 @@ export class ChatGateway
     let payload;
     try {
       payload = await this.getPayload(socket);
-      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id} ${payload.id}`);
     } catch (error) {
-      return { checktoken:false };
+      return { checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`, success : false };
     }
     
     // const requestUser = await this.userService.getUserByUserId(
@@ -687,13 +691,12 @@ export class ChatGateway
       );
     if (payload.username == _Data["targetUser"])
       return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`,checktoken:true};
+    if (await this.chatRoomService.isFriendEachOther(requestUser.id, targetUser.id) === true)
+      return {success : false, faillog : `친구끼리는 차단할 수 없습니다.`,checktoken:true};
     const targetUserId = targetUser.id;
-      
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
-    if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
-      return { success : false, faillog:`방의 소유자에 대해서는 처리할 수 없습니다.`,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
-    
-    
+    // if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
+    //   return { success : false, faillog:`방의 소유자에 대해서는 처리할 수 없습니다.`,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요. 
     const userId = requestUser.id;
     const blockedRet = await this.chatRoomService.setBlock(
       _Data['roomName'],
@@ -916,13 +919,14 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
     if (user.username == _Data["receiver"])
       return {success : false, faillog : `자기 자신을 친구로 추가할 수 없습니다.`,checktoken:true};
     const recvUser = await this.userService.getUserByUserName(_Data["receiver"]);
-
+    if (await this.chatRoomService.isBlockedEachOther(user.id, recvUser.id, _Data['roomName']) === true)
+      return {success : false, faillog : `차단된 유저가 포함되어 있습니다.`,checktoken:true};
     const userId = user.id;
     const targetUserId = recvUser.id;
     if (await this.friendService.isAlreadyFriendReq(userId,targetUserId)===true)
@@ -960,7 +964,7 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const recvUser = await this.userService.getUserByUserId(payload.id);
     const sendUser = await this.userService.getUserByUserName(_Data["sender"]);
@@ -1038,7 +1042,7 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
@@ -1076,7 +1080,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
 
     const requestUser = await this.userService.getUserByUserId(
@@ -1113,7 +1117,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
 
     const requestUser = await this.userService.getUserByUserId(
@@ -1150,7 +1154,7 @@ export class ChatGateway
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
       );
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
       // socket.disconnect();
     }
     const socketList = await this.friendService.getFriendChatSocket(
@@ -1187,6 +1191,32 @@ export class ChatGateway
 
   */
 
+
+  // @SubscribeMessage('roomTokenError')
+  // async handleLeaveRoomTokenError(
+  //   @ConnectedSocket() socket: Socket,
+  // ) {
+  //   console.log("=========== roomTokenError");
+  //   const userArr = await this.chatRoomService.checkUserTokenError(socket.id);
+  //   if (userArr.length === 0)
+  //     return ;
+  //   const user = userArr[0]
+  //   const userId = user.id;
+  //   const room = await this.chatRoomService.checkRoomTokenError(userId);
+  //   if (room.length === 0)
+  //     return ;
+  //   const roomName = room[0];
+  //   console.log("=========== roomTokenError",roomName);
+  //   await this.chatRoomService.leaveUserFromRoom(userId, roomName);
+  //   if ((await this.chatRoomService.isEmptyRoom(roomName)) === true) {
+  //     await this.chatRoomService.deleteChatInformation(roomName);
+  //     // const list = await this.chatRoomService.getRoomList();
+  //     // socket.broadcast.emit('room-list', list);
+  //   }
+  //   socket.leave(roomName);
+  //   // await this.userService.settingStatus(userId,0);
+  //   return ;
+  // }
 
   ////////////////////////////////////////// Payload //////////////////////////////////////////
   async getPayload(socket: Socket) {

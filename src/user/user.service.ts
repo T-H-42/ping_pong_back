@@ -566,14 +566,36 @@ export class UserService {
     return await this.userRepository.query(query);
   }
 
-  async catchErrorFunction(sockid: string)
+  async catchErrorFunctionChat(sockid: string)
   {
-    const query = `select * from "user" where "socketid"='${sockid}' or "chat_sockid"='${sockid}' or "game_sockid"='${sockid}';`;
+    const query = `select * from "user" where "chat_sockid"='${sockid}';`;
     const user = await this.userRepository.query(query);
     if (user.length === 0)
       return ;
     //user[0].id
-    const query2 = `update "user" set "socketid"=null, "chat_sockid"=null, "game_sockid"=null,status=0 where id=${user[0].id};`;
+    const query2 = `update "user" set "chat_sockid"=null where id=${user[0].id};`;
+    await this.userRepository.query(query2);
+  }
+
+  async catchErrorFunctionPingPong(sockid: string)
+  {
+    const query = `select * from "user" where "socketid"='${sockid}';`;
+    const user = await this.userRepository.query(query);
+    if (user.length === 0)
+      return ;
+    //user[0].id
+    const query2 = `update "user" set "socketid"=null, status=0 where id=${user[0].id};`;
+    await this.userRepository.query(query2);
+  }
+  
+  async catchErrorFunctionGame(sockid: string)
+  {
+    const query = `select * from "user" where "game_sockid"='${sockid}';`;
+    const user = await this.userRepository.query(query);
+    if (user.length === 0)
+      return ;
+    //user[0].id
+    const query2 = `update "user" set  "game_sockid"=null where id=${user[0].id};`;
     await this.userRepository.query(query2);
   }
 
