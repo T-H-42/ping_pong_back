@@ -139,7 +139,11 @@ export class ChatGateway
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('get payload err in chatDisconnect');
-      await this.userService.catchErrorFunction(socket.id);/////
+      // socket.emit('roomTokenError',{});
+      const roomName = await this.chatRoomService.catchErrorRoom(socket.id);
+      if (roomName)
+        socket.leave(roomName);
+      await this.userService.catchErrorFunctionChat(socket.id);/////
       socket.disconnect();
       return { checktoken:false };
     }
@@ -170,9 +174,9 @@ export class ChatGateway
     let payload;
     try {
       payload = await this.getPayload(socket);
-      this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
+      this.logger.log(`msg 전송: ${payload.username} ${socket.id} ${payload.id}`);
     } catch (error) {
-      return { checktoken:false };
+      return { checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`, success : false };
     }
     
     // const requestUser = await this.userService.getUserByUserId(
@@ -916,7 +920,7 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
     if (user.username == _Data["receiver"])
@@ -961,7 +965,7 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const recvUser = await this.userService.getUserByUserId(payload.id);
     const sendUser = await this.userService.getUserByUserName(_Data["sender"]);
@@ -1039,7 +1043,7 @@ export class ChatGateway
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('payloaderr in msg');
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
@@ -1077,7 +1081,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
 
     const requestUser = await this.userService.getUserByUserId(
@@ -1114,7 +1118,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`채팅방 만들기 호출: ${payload.username} ${socket.id}`);
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
 
     const requestUser = await this.userService.getUserByUserId(
@@ -1151,7 +1155,7 @@ export class ChatGateway
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
       );
     } catch (error) {
-      return {checktoken:false};
+      return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
       // socket.disconnect();
     }
     const socketList = await this.friendService.getFriendChatSocket(
@@ -1189,10 +1193,36 @@ export class ChatGateway
   */
 
 
+  // @SubscribeMessage('roomTokenError')
+  // async handleLeaveRoomTokenError(
+  //   @ConnectedSocket() socket: Socket,
+  // ) {
+  //   console.log("=========== roomTokenError");
+  //   const userArr = await this.chatRoomService.checkUserTokenError(socket.id);
+  //   if (userArr.length === 0)
+  //     return ;
+  //   const user = userArr[0]
+  //   const userId = user.id;
+  //   const room = await this.chatRoomService.checkRoomTokenError(userId);
+  //   if (room.length === 0)
+  //     return ;
+  //   const roomName = room[0];
+  //   console.log("=========== roomTokenError",roomName);
+  //   await this.chatRoomService.leaveUserFromRoom(userId, roomName);
+  //   if ((await this.chatRoomService.isEmptyRoom(roomName)) === true) {
+  //     await this.chatRoomService.deleteChatInformation(roomName);
+  //     // const list = await this.chatRoomService.getRoomList();
+  //     // socket.broadcast.emit('room-list', list);
+  //   }
+  //   socket.leave(roomName);
+  //   // await this.userService.settingStatus(userId,0);
+  //   return ;
+  // }
+
   ////////////////////////////////////////// Payload //////////////////////////////////////////
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
-    this.logger.log(token);
+    this.logger.log("token!!!!",token);
     const serverConfig = config.get('jwt');
     const secret = serverConfig.secret;
     return (await jwt.verify(token, secret)) as any;
