@@ -83,14 +83,17 @@ export class ChatRoomService {
         // update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         
         // const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
-        const query2 = `select * from "chat_room" where "index" = $1;`;
+        const query = `select * from "chat_room" where "index" = $1;`;
         const values = [roomName];
-        const chatroom = await this.chatRoomRepository.query(query2,values);
+        const chatroom = await this.chatRoomRepository.query(query,values);
         if (chatroom[0].curr_user === 0)
             return ;
-        const query = `delete from "chat_user" where "user_id"=${userid} and "index"=$1; 
-        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1`;
-        await this.chatRoomRepository.query(query, values);
+        const query2 = `delete from "chat_user" where "user_id"=${userid} and "index"=$1;`;
+        await this.chatRoomRepository.query(query2, values);
+        
+        const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1`;
+        await this.chatRoomRepository.query(query3, values);
+
     }
     
     async isNeedDmNoti(userid : number, roomName : string)

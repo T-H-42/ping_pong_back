@@ -2,12 +2,12 @@ jwt:
   secret: 'secret1234'
 
 oauth:
-  oauth_id: 'u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1'
-  oauth_secret: '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'
-  oauth_redirect_uri: 'http://10.19.210.104:3000/redirect'
-  # oauth_id: 'u-s4t2ud-933e31fc11cc47bb66644b03d56b1916ce728f0c3bc13a0b5da7656e43e56dc7'
-  # oauth_secret: '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'
-  # oauth_redirect_uri: 'http://10.15.1.4:3000/redirect'
+  # oauth_id: 'u-s4t2ud-801649286a9bd1a88b32e7f924abb1e0439fff57438b05157c59b7a6ef8c98a1'
+  # oauth_secret: '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'
+  # oauth_redirect_uri: 'http://10.19.210.104:3000/redirect'
+  oauth_id: 'u-s4t2ud-933e31fc11cc47bb66644b03d56b1916ce728f0c3bc13a0b5da7656e43e56dc7'
+  oauth_secret: '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'
+  oauth_redirect_uri: 'http://10.15.1.4:3000/redirect'
 
 game:
   paddleWidth: 2
