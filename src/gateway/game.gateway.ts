@@ -95,13 +95,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
-      await this.userService.catchErrorFunction(socket.id);/////nhwang
+      const user = await this.userService.getUserByGameSocketId(socket.id);
+      if (!user)
+        return ;
+      const makePayload = {
+        id: user.id,
+        username: user.username,
+      }
+      console.log('match queue 제거');
+      this.matchQueue = this.matchQueue.filter(item => item !== makePayload.id);
+      await this.handleAbnormalExit(makePayload);
+      await this.userService.catchErrorFunctionGame(socket.id);/////nhwang
       return;
     }
     this.matchQueue = this.matchQueue.filter(item => item !== payload.id);
-    await this.handleAbnormalExit(socket, payload);
-    
-
+    await this.handleAbnormalExit(payload);
     await this.userService.disconnectGameSocket(payload.id);
   }
   
@@ -153,7 +161,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
   // 게임룸에 있을 때 비정상 종료한 경우 처리
-  async handleAbnormalExit(socket: Socket, payload: any) {
+  async handleAbnormalExit(payload: any) {
+    console.log('비정상 종료 감지');
     const roomName = this.RoomConnectedSocket.get(payload.id);
     if (roomName) {
       console.log('게임방 만들어진 상태');
@@ -180,7 +189,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.logger.log(`setting중 나감`);
         status = 1;
       }
-      socket.to(roomName).emit('ft_enemy_leave_room', {
+      // socket.to(roomName).emit('ft_enemy_leave_room', {
+      this.nsp.to(roomName).emit('ft_enemy_leave_room', {
         username: payload.username,
         status,
         checktoken: true,
@@ -237,7 +247,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.log(`Game 채널 ft_leave_setting_room 호출`);
       try {
         const payload = await this.getPayload(socket);
-        await this.handleAbnormalExit(socket, payload);
+        await this.handleAbnormalExit(payload);
       } catch (error) {
         this.logger.error('fail GameGateway handleLeaveSettingRoom', error);
         return {checktoken: false};

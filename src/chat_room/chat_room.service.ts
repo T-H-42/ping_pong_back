@@ -69,6 +69,11 @@ export class ChatRoomService {
     async leaveUserFromRoom(userid : number, roomName : string)
     {
         console.log("in leave User in ROOM");
+        if ((await this.isEmptyRoom(roomName)) === true)
+        {
+            console.log("in leave User in ROOM - is Empty!");
+            return ;
+        }
         const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
         update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         
@@ -402,6 +407,46 @@ export class ChatRoomService {
         const hashedPassword = await this.hashPassword('');
         const query = `update "chat_room" set "password"='${hashedPassword}', "room_stat"=0 where "index" = '${roomName}' and "owner_id" = ${userId};`;
         await this.chatRoomRepository.query(query);
+    }
+
+    async catchErrorRoom(sockid:string)
+    {
+        console.log("=========== roomTokenError");
+        const userArr = await this.checkUserTokenError(sockid);
+        if (userArr.length === 0)
+          return ;
+        console.log("=========== roomTokenError",userArr);
+        
+        const user = userArr[0];
+        const userId = user.id;
+        const room = await this.checkRoomTokenError(userId);
+        console.log("=========== roomTokenError-room",room);
+        if (room.length === 0)
+          return ;
+        const roomName = room[0].index;
+        console.log("=========== roomTokenError",roomName);
+        await this.leaveUserFromRoom(userId, roomName);
+        if ((await this.isEmptyRoom(roomName)) === true) {
+          await this.deleteChatInformation(roomName);
+          // const list = await this.chatRoomService.getRoomList();
+          // socket.broadcast.emit('room-list', list);
+        }
+        // await this.userService.settingStatus(userId,0);
+        return roomName;
+      }
+
+    async checkUserTokenError(sockid : string)
+    {
+        const query = `select * from "user" where "socketid"='${sockid}' or "chat_sockid"='${sockid}' or "game_sockid"='${sockid}';`;
+        const user = await this.chatRoomRepository.query(query);
+        return user;
+    }
+
+    async checkRoomTokenError(userid : number)
+    {
+        const query = `select "index" from "chat_user" where "user_id"=${userid};`;
+        const room = await this.chatRoomRepository.query(query);
+        return room;
     }
 
     // async preventInjection(userInputAny : any)
