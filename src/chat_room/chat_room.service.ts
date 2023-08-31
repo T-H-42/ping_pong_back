@@ -79,8 +79,8 @@ export class ChatRoomService {
             console.log("in leave User in ROOM - is Empty!");
             return ;
         }
-        const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
-        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
+        // const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
+        // update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         
         // const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
         const query2 = `select * from "chat_room" where "index" = $1;`;
