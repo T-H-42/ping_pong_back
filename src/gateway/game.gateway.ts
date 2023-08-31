@@ -63,7 +63,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @WebSocketServer() nsp: Namespace;
 
-  private gameConfig = config.get('game');
   private logger = new Logger('Gateway');
   // 매칭 큐 배열
   private matchQueue: number[] = [];
@@ -352,8 +351,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       speedMode: 0,
       timer: null,
       element: null,
-      velocityX: this.gameConfig.velocityX,
-      velocityY: this.gameConfig.velocityY,
+      velocityX: 0.5,
+      velocityY: 0.25,
       leftPaddleStatus: 0,
       rightPaddleStatus: 0,
     }
@@ -517,7 +516,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   updatePadlePosition(status: number, paddle: Paddle) {
-    const speed = this.gameConfig.paddleSpeed;
+    const speed = 3;
     if (status === 1 && paddle.y > 0) {
       paddle.y -= speed;
     }
@@ -587,8 +586,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const directX = Math.random() < 0.5 ? -1 : 1;
     const directY = Math.random() < 0.5 ? -1 : 1;
 
-    gameRoom.velocityX = this.gameConfig.velocityX * directX;
-    gameRoom.velocityY = this.gameConfig.velocityY * directY;
+    gameRoom.velocityX = 0.5 * directX;
+    gameRoom.velocityY = 0.25 * directY;
   }
 
   async finishGame(gameRoom: GameInformation, roomName: string) {
@@ -630,21 +629,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   createElement(): GameElement {
     return {
       ball: {
-        x: 50 - this.gameConfig.radius,
-        y: 50 - this.gameConfig.radius,
-        radius: this.gameConfig.radius,
+        x: 50 - 1,
+        y: 50 - 1,
+        radius: 1,
       },
       leftPaddle: {
         x: 5,
         y: 40,
-        width: this.gameConfig.paddleWidth,
-        height: this.gameConfig.paddleHeight,
+        width: 2,
+        height: 15,
       },
       rightPaddle: {
-        x: 100 - this.gameConfig.paddleWidth - 5,
+        x: 100 - 2 - 5,
         y: 40,
-        width: this.gameConfig.paddleWidth,
-        height: this.gameConfig.paddleHeight,
+        width: 2,
+        height: 15,
       },
       score: {
         left: 0,
