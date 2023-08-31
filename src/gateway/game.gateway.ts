@@ -95,10 +95,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
+      await this.userService.catchErrorFunction(socket.id);/////nhwang
       return;
     }
     this.matchQueue = this.matchQueue.filter(item => item !== payload.id);
     await this.handleAbnormalExit(socket, payload);
+    
+
     await this.userService.disconnectGameSocket(payload.id);
   }
   
@@ -618,8 +621,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // socket으로 부터 token을 받아서 payload 추출
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
-    const serverConfig = config.get('jwt');
-    const secret = serverConfig.secret;
+    // const serverConfig = config.get('jwt');
+    // const secret = serverConfig.secret;
+    const secret = process.env.JWT_SECRET;
     return await jwt.verify(token, secret) as any;
   }
 

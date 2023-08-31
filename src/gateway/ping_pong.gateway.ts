@@ -78,6 +78,7 @@ export class PingPongGateway
       });
     } catch (error) {
       this.logger.error('validate_token fail', error);
+      await this.userService.catchErrorFunction(socket.id);/////
       return { checktoken: false };
     }
   }
@@ -132,8 +133,9 @@ export class PingPongGateway
     this.logger.log('======ping token in get payload=======');
     this.logger.log(token);
     this.logger.log('======ping token in get payload=======');
-    const serverConfig = config.get('jwt');
-    const secret = serverConfig.secret;
+    // const serverConfig = config.get('jwt');
+    // const secret = serverConfig.secret;
+    const secret = process.env.JWT_SECRET;
     return (await jwt.verify(token, secret)) as any;
   }
   // return await jwt.verify(token, secret) as any;

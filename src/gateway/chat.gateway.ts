@@ -98,10 +98,13 @@ export class ChatGateway
   async handleConnection(@ConnectedSocket() socket: Socket) {
     let payload; 
     // return {checktoken:false};///test
-    try {
-      payload = await this.getPayload(socket);
-      console.log('handle_connn!!! in chat');
-      await this.userService.connectChatSocket(payload.id, socket.id);
+    /*
+    test
+    */
+   try {
+     payload = await this.getPayload(socket);
+     console.log('handle_connn!!! in chat');
+     await this.userService.connectChatSocket(payload.id, socket.id);
       this.logger.log(
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
       );
@@ -135,6 +138,7 @@ export class ChatGateway
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
       console.log('get payload err in chatDisconnect');
+      await this.userService.catchErrorFunction(socket.id);/////
       socket.disconnect();
       return { checktoken:false };
     }
@@ -987,6 +991,7 @@ export class ChatGateway
   )
   {
     let payload;
+
     try {
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
@@ -1187,8 +1192,9 @@ export class ChatGateway
   async getPayload(socket: Socket) {
     const token = await socket.handshake.auth.token;
     this.logger.log(token);
-    const serverConfig = config.get('jwt');
-    const secret = serverConfig.secret;
+    // const serverConfig = config.get('jwt');
+    // const secret = serverConfig.secret;
+    const secret = process.env.JWT_SECRET;
     return (await jwt.verify(token, secret)) as any;
   }
 
