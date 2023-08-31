@@ -250,6 +250,20 @@ export class ChatRoomService {
         });
         return _return;
     }
+
+    async isBlockedEachOther(userId :number, blockedUserId : number, roomName:string)
+    {
+        const query = `select * from "chat_block" where "user_id"=${userId} and "blocked_user_id"=${blockedUserId} and "index"=$1;`;
+        const values = [roomName];
+        const ret1 = await this.chatRoomRepository.query(query,values);
+        const query2 = `select * from "chat_block" where "user_id"=${blockedUserId} and "blocked_user_id"=${userId} and "index"=$1;`;
+        const ret2 = await this.chatRoomRepository.query(query2,values);
+        if (ret1.length === 0 && ret2.length === 0)
+        {
+            return false;
+        }
+        return true;
+    }
     
     async isValidPassword(roomName:string, password : string)
     {
@@ -439,6 +453,20 @@ export class ChatRoomService {
         return true;
     }
 
+
+    async isFriendEachOther(userId :number, blockedUserId : number)
+    {
+        const query = `select * from "friend" where "sendIdId"=${userId} and "recvIdId"=${blockedUserId} and "accecpt"=true;`;
+        // const values = [roomName];
+        const ret1 = await this.chatRoomRepository.query(query);
+        const query2 = `select * from "friend" where "sendIdId"=${blockedUserId} and "recvIdId"=${userId} and "accecpt"=true;`;
+        const ret2 = await this.chatRoomRepository.query(query2);
+        if (ret1.length === 0 && ret2.length === 0)
+        {
+            return false;
+        }
+        return true;
+    }
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.
