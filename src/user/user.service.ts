@@ -336,6 +336,15 @@ export class UserService {
     return user;
   }
   
+  async getUserByUserIntraId(intra_id: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: {
+        intra_id: intra_id,
+      },
+    });
+    return user;
+  }
+
   async getUserByUserId(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: {
@@ -396,6 +405,12 @@ export class UserService {
   async getChatSocketByUserName(username: string) {
     const query =
       await `select "chat_sockid" from "user" where "username" = '${username}';`;
+    return await this.userRepository.query(query);
+  }
+
+  async getChatSocketByIntraId(intraid: string) {
+    const query =
+      await `select "chat_sockid" from "user" where "intra_id" = '${intraid}';`;
     return await this.userRepository.query(query);
   }
 

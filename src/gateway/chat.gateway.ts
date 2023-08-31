@@ -405,8 +405,9 @@ export class ChatGateway
     const requestUser = await this.userService.getUserByUserId(
       payload.id,
     );
-    const targetUser = await this.userService.getUserByUserName(  //상대방의 로컬 스토리지도 내가 변경된 것을 담고 있어야 할 것. -> 확인 필요함
-      _Data['username'],
+    console.log("in join dm target:", _Data['receiver']);
+    const targetUser = await this.userService.getUserByUserIntraId(  //상대방의 로컬 스토리지도 내가 변경된 것을 담고 있어야 할 것. -> 확인 필요함
+      _Data['receiver'],
     );
     let arr = [];
     arr.push(targetUser.intra_id);
@@ -477,15 +478,21 @@ export class ChatGateway
     const requestUser = await this.userService.getUserByUserId(
       payload.id,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
+    console.log("in dm reqUser:", requestUser);
     const userId = requestUser.id;
     const status = await this.chatRoomService.isNeedDmNoti(userId, _Data['roomName']);
     // ㄴ이거 반환값이 2보다 작으면 무조건 상대에게 가야함.
-    const targerUser = await this.userService.getUserByUserName(_Data['receiver']);
+    console.log("in dm _Data[recv]",_Data['receiver']);
+    const targerUser = await this.userService.getUserByUserIntraId(_Data['receiver']);
+    console.log("in dm target:",targerUser);
+
     if (status === true) {
-      const friend = await this.userService.getChatSocketByUserName(_Data['receiver']);
+      const friend = await this.userService.getChatSocketByIntraId(_Data['receiver']);
       let friends = [];
-      friends.push(friend[0].chat_sockid);
+      if (friend.length !== 0)
+        friends.push(friend[0].chat_sockid);
       // roomName, user_id, msg, time으로 저장
+      console.log("in dm 2");
       await this.chatRoomService.saveMessage(_Data['roomName'], userId, _Data['message']);
       
       //ft-dm 시////////////////
@@ -594,8 +601,12 @@ export class ChatGateway
       return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`,checktoken:true};
     const targetUserId = targetUser.id;
     const targetUserRight = await this.chatRoomService.checkRight(_Data["roomName"], targetUserId);
+    if (targetUserRight===undefined)
+      return { success : false, faillog : `방의 유저가 없습니다.` ,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
     if (targetUserRight >= 2) //소유자에 대한 권한 변경 방지 -> 강퇴,Ban,음소거 등에 대해서도 방지 필요.
       return { success : false, faillog : `방의 소유자에 대해서는 처리할 수 없습니다.` ,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
+    if (targetUserRight >= 1)
+      return { success : false, faillog : `이미 관리자인 유저입니다.` ,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
     await this.chatRoomService.setAdmin(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${payload.username}(Admin)`,
