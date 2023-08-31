@@ -63,7 +63,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @WebSocketServer() nsp: Namespace;
 
-  private gameConfig = config.get('game');
   private logger = new Logger('Gateway');
   // 매칭 큐 배열
   private matchQueue: number[] = [];
@@ -95,13 +94,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload = await this.getPayload(socket);
     } catch (error) {
       this.logger.error('fail GameGateway handleDisconnect', error);
-      await this.userService.catchErrorFunction(socket.id);/////nhwang
+      const user = await this.userService.getUserByGameSocketId(socket.id);
+      if (!user)
+        return ;
+      const makePayload = {
+        id: user.id,
+        username: user.username,
+      }
+      console.log('match queue 제거');
+      this.matchQueue = this.matchQueue.filter(item => item !== makePayload.id);
+      await this.handleAbnormalExit(makePayload);
+      await this.userService.catchErrorFunctionGame(socket.id);/////nhwang
       return;
     }
     this.matchQueue = this.matchQueue.filter(item => item !== payload.id);
-    await this.handleAbnormalExit(socket, payload);
-    
-
+    await this.handleAbnormalExit(payload);
     await this.userService.disconnectGameSocket(payload.id);
   }
   
@@ -153,7 +160,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
   // 게임룸에 있을 때 비정상 종료한 경우 처리
-  async handleAbnormalExit(socket: Socket, payload: any) {
+  async handleAbnormalExit(payload: any) {
+    console.log('비정상 종료 감지');
     const roomName = this.RoomConnectedSocket.get(payload.id);
     if (roomName) {
       console.log('게임방 만들어진 상태');
@@ -180,7 +188,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.logger.log(`setting중 나감`);
         status = 1;
       }
-      socket.to(roomName).emit('ft_enemy_leave_room', {
+      // socket.to(roomName).emit('ft_enemy_leave_room', {
+      this.nsp.to(roomName).emit('ft_enemy_leave_room', {
         username: payload.username,
         status,
         checktoken: true,
@@ -237,7 +246,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.log(`Game 채널 ft_leave_setting_room 호출`);
       try {
         const payload = await this.getPayload(socket);
-        await this.handleAbnormalExit(socket, payload);
+        await this.handleAbnormalExit(payload);
       } catch (error) {
         this.logger.error('fail GameGateway handleLeaveSettingRoom', error);
         return {checktoken: false};
@@ -352,8 +361,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       speedMode: 0,
       timer: null,
       element: null,
-      velocityX: this.gameConfig.velocityX,
-      velocityY: this.gameConfig.velocityY,
+      velocityX: 0.5,
+      velocityY: 0.25,
       leftPaddleStatus: 0,
       rightPaddleStatus: 0,
     }
@@ -517,7 +526,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   updatePadlePosition(status: number, paddle: Paddle) {
-    const speed = this.gameConfig.paddleSpeed;
+    const speed = 3;
     if (status === 1 && paddle.y > 0) {
       paddle.y -= speed;
     }
@@ -587,8 +596,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const directX = Math.random() < 0.5 ? -1 : 1;
     const directY = Math.random() < 0.5 ? -1 : 1;
 
-    gameRoom.velocityX = this.gameConfig.velocityX * directX;
-    gameRoom.velocityY = this.gameConfig.velocityY * directY;
+    gameRoom.velocityX = 0.5 * directX;
+    gameRoom.velocityY = 0.25 * directY;
   }
 
   async finishGame(gameRoom: GameInformation, roomName: string) {
@@ -630,21 +639,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   createElement(): GameElement {
     return {
       ball: {
-        x: 50 - this.gameConfig.radius,
-        y: 50 - this.gameConfig.radius,
-        radius: this.gameConfig.radius,
+        x: 50 - 1,
+        y: 50 - 1,
+        radius: 1,
       },
       leftPaddle: {
         x: 5,
         y: 40,
-        width: this.gameConfig.paddleWidth,
-        height: this.gameConfig.paddleHeight,
+        width: 2,
+        height: 15,
       },
       rightPaddle: {
-        x: 100 - this.gameConfig.paddleWidth - 5,
+        x: 100 - 2 - 5,
         y: 40,
-        width: this.gameConfig.paddleWidth,
-        height: this.gameConfig.paddleHeight,
+        width: 2,
+        height: 15,
       },
       score: {
         left: 0,

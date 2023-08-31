@@ -74,6 +74,13 @@ export class ChatRoomService {
         console.log("in leave User in ROOM");
         // const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
         // update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
+        if ((await this.isEmptyRoom(roomName)) === true)
+        {
+            console.log("in leave User in ROOM - is Empty!");
+            return ;
+        }
+        const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
+        update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         
         // const query2 = `select * from "chat_room" where "index" = '${roomName}';`;
         const query2 = `select * from "chat_room" where "index" = $1;`;
@@ -274,6 +281,20 @@ export class ChatRoomService {
         });
         return _return;
     }
+
+    async isBlockedEachOther(userId :number, blockedUserId : number, roomName:string)
+    {
+        const query = `select * from "chat_block" where "user_id"=${userId} and "blocked_user_id"=${blockedUserId} and "index"=$1;`;
+        const values = [roomName];
+        const ret1 = await this.chatRoomRepository.query(query,values);
+        const query2 = `select * from "chat_block" where "user_id"=${blockedUserId} and "blocked_user_id"=${userId} and "index"=$1;`;
+        const ret2 = await this.chatRoomRepository.query(query2,values);
+        if (ret1.length === 0 && ret2.length === 0)
+        {
+            return false;
+        }
+        return true;
+    }
     
     async isValidPassword(roomName:string, password : string)
     {
@@ -435,6 +456,46 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query, values);
     }
 
+    async catchErrorRoom(sockid:string)
+    {
+        console.log("=========== roomTokenError");
+        const userArr = await this.checkUserTokenError(sockid);
+        if (userArr.length === 0)
+          return ;
+        console.log("=========== roomTokenError",userArr);
+        
+        const user = userArr[0];
+        const userId = user.id;
+        const room = await this.checkRoomTokenError(userId);
+        console.log("=========== roomTokenError-room",room);
+        if (room.length === 0)
+          return ;
+        const roomName = room[0].index;
+        console.log("=========== roomTokenError",roomName);
+        await this.leaveUserFromRoom(userId, roomName);
+        if ((await this.isEmptyRoom(roomName)) === true) {
+          await this.deleteChatInformation(roomName);
+          // const list = await this.chatRoomService.getRoomList();
+          // socket.broadcast.emit('room-list', list);
+        }
+        // await this.userService.settingStatus(userId,0);
+        return roomName;
+      }
+
+    async checkUserTokenError(sockid : string)
+    {
+        const query = `select * from "user" where "socketid"='${sockid}' or "chat_sockid"='${sockid}' or "game_sockid"='${sockid}';`;
+        const user = await this.chatRoomRepository.query(query);
+        return user;
+    }
+
+    async checkRoomTokenError(userid : number)
+    {
+        const query = `select "index" from "chat_user" where "user_id"=${userid};`;
+        const room = await this.chatRoomRepository.query(query);
+        return room;
+    }
+
     // async preventInjection(userInputAny : any)
     // {
     //     let checkArr = ["select","delete","update","create","revoke","exec","commit","alter","drop"];
@@ -484,6 +545,20 @@ export class ChatRoomService {
         return true;
     }
 
+
+    async isFriendEachOther(userId :number, blockedUserId : number)
+    {
+        const query = `select * from "friend" where "sendIdId"=${userId} and "recvIdId"=${blockedUserId} and "accecpt"=true;`;
+        // const values = [roomName];
+        const ret1 = await this.chatRoomRepository.query(query);
+        const query2 = `select * from "friend" where "sendIdId"=${blockedUserId} and "recvIdId"=${userId} and "accecpt"=true;`;
+        const ret2 = await this.chatRoomRepository.query(query2);
+        if (ret1.length === 0 && ret2.length === 0)
+        {
+            return false;
+        }
+        return true;
+    }
     
     /*
     Front에 위의 함수 getUserListInChatRoom에서 받은 것에서 자신의 아이디를 비교하는 로직을 하기 싫다면, 이 API를 사용하면 됌.

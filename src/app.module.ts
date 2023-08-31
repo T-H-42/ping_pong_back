@@ -17,6 +17,8 @@ import { GameModule } from './modules/game.module';
 import { ChatRoomModule } from './chat_room/chat_room.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { APP_FILTER } from '@nestjs/core';
+import { MulterExceptionFilter } from './utils/multerExceptionFilter';
 
 @Module({
   imports: [
@@ -36,6 +38,9 @@ import { join } from 'path';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService], //FriendGatewayGateway, ChatGateway
+  providers: [AppService, {
+    provide: APP_FILTER,
+    useClass: MulterExceptionFilter,
+  },], //FriendGatewayGateway, ChatGateway
 })
 export class AppModule {}
