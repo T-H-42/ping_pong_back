@@ -110,10 +110,6 @@ export class ChatGateway
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
       );
     } catch (error) {
-      socket.emit('ft_tomain', {
-        success:false,
-        checktoken:false,
-      });
       this.logger.error('1. validate_token fail in chat', error);
       return { checktoken:false };
     }
