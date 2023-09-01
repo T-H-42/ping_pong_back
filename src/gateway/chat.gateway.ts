@@ -103,7 +103,7 @@ export class ChatGateway
     */
    try {
      payload = await this.getPayload(socket);
-     console.log('handle_connn!!! in chat');
+     // console.log('handle_connn!!! in chat');
      await this.userService.connectChatSocket(payload.id, socket.id);
       this.logger.log(
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
@@ -112,7 +112,7 @@ export class ChatGateway
       this.logger.error('1. validate_token fail in chat', error);
       return { checktoken:false };
     }
-    console.log("handleConnection friendlist - ", payload);
+    // console.log("handleConnection friendlist - ", payload);
     const socketList = await this.friendService.getFriendChatSocket(
       payload.id,
     );
@@ -145,7 +145,7 @@ export class ChatGateway
     let payload;
     try {
       payload = await this.getPayload(socket);
-      console.log('disconnect - in chat', payload.username); //현재 기존의 것을 기준으로 disconnect 하고 있음.
+      // console.log('disconnect - in chat', payload.username); //현재 기존의 것을 기준으로 disconnect 하고 있음.
       const room = await this.chatRoomService.roomCheckDisconnect(payload.id);
       if (room.length !== 0)
       {
@@ -178,7 +178,7 @@ export class ChatGateway
       /////////여기서 chat 관련 데이터 다 삭제
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('get payload err in chatDisconnect');
+      // console.log('get payload err in chatDisconnect');
       // socket.emit('roomTokenError',{});
       const roomName = await this.chatRoomService.catchErrorRoom(socket.id);
       if (roomName)
@@ -190,9 +190,9 @@ export class ChatGateway
     const socketList = await this.friendService.getFriendChatSocket( //이것도 유저네임으로 받아오니까 문제임
       payload.id,
     );
-    console.log("-----socklist----");
-    console.log(socketList);
-    console.log("---------");
+    // console.log("-----socklist----");
+    // console.log(socketList);
+    // console.log("---------");
     
     // await this.chatRoomService.deleteChatInformation(roomName);
     //[]
@@ -235,17 +235,17 @@ export class ChatGateway
       payload.id,
     );
 
-    console.log("requestUser :", requestUser.username, "DB Chat_Sockid :",requestUser.chat_sockid, "Real Sock :", socket.id);
-    console.log("roomName :", _Data['roomName']);
+    // console.log("requestUser :", requestUser.username, "DB Chat_Sockid :",requestUser.chat_sockid, "Real Sock :", socket.id);
+    // console.log("roomName :", _Data['roomName']);
     const userId = requestUser.id;
     //Muted이면 즉시 리턴만해서 처리 -> 아니면 관련 데이터 모두 삭제.
     if (await this.chatRoomService.isMuted(_Data['roomName'], userId))
       return {username: `${requestUser.username}`, success : false, faillog : `현재 음소거 상태입니다.`,checktoken:true};
     await this.chatRoomService.saveMessage(_Data['roomName'], userId, _Data['message']);
     const userBlockedMeList =  await this.chatRoomService.findWhoBlockedMe(userId,_Data['roomName']);//block을 제외한 유저에게 보내기
-    console.log("-----------in ft_message find user Who Blocked Me -----------");
-    console.log(userBlockedMeList,_Data['message'],_Data['roomName']);
-    console.log("-----------in ft_message find user Who Blocked Me -----------");
+    // console.log("-----------in ft_message find user Who Blocked Me -----------");
+    // console.log(userBlockedMeList,_Data['message'],_Data['roomName']);
+    // console.log("-----------in ft_message find user Who Blocked Me -----------");
     
     socket.broadcast.except(userBlockedMeList).to(_Data['roomName']).emit('ft_message', {
       username: `${requestUser.username}`,
@@ -289,9 +289,9 @@ export class ChatGateway
       const requestUser = await this.userService.getUserByUserId(
         payload.id,
       );
-    // console.log('=======');
-    // console.log(requestUser);
-    // console.log('=======');
+    // // console.log('=======');
+    // // console.log(requestUser);
+    // // console.log('=======');
 
       const userId = requestUser.id;
       const isExist = await this.chatRoomService.isExistRoom(_Data['roomName']); // 방이 있는지 DB에 유효성 체크
@@ -310,7 +310,7 @@ export class ChatGateway
       ////////////////////
       } else 
       {
-        console.log("testsetst");
+        // console.log("testsetst");
         return { success: false, faillog: `${_Data["roomName"]} 방이 이미 존재합니다.`,checktoken:true };
       }
 
@@ -319,9 +319,9 @@ export class ChatGateway
         await this.chatRoomService.joinUserToRoom(userId, _Data['roomName'], 2); //이미 유저 네임이 있으면 만들지 않음
       //&& limit_user vs curr_user) // limit 유저보다 작아야만 함. 반드시
       socket.join(_Data['roomName']);
-      console.log(`${payload.username} ${socket.id}`);
+      // console.log(`${payload.username} ${socket.id}`);
       createdRooms.push(_Data['roomName']);
-    // console.log({success: true, payload: _Data["roomName"]});
+    // // console.log({success: true, payload: _Data["roomName"]});
       await this.userService.settingStatus(payload.id, 3);
       const list = await this.chatRoomService.getRoomList();
       socket.broadcast.emit('room-list', list);
@@ -451,7 +451,7 @@ export class ChatGateway
     const requestUser = await this.userService.getUserByUserId(
       payload.id,
     );
-    console.log("in join dm target:", _Data['receiver']);
+    // console.log("in join dm target:", _Data['receiver']);
     const targetUser = await this.userService.getUserByUserIntraId(  //상대방의 로컬 스토리지도 내가 변경된 것을 담고 있어야 할 것. -> 확인 필요함
       _Data['receiver'],
     );
@@ -461,7 +461,7 @@ export class ChatGateway
     arr.sort();
     let roomName = arr.join();
 
-    console.log("--------------join dm?");
+    // console.log("--------------join dm?");
     const userId = requestUser.id;
     const isExist = await this.chatRoomService.isExistRoom(roomName); // 방이 있는지 DB에 유효성 체크
     if (isExist === false) {
@@ -518,19 +518,19 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const requestUser = await this.userService.getUserByUserId(
       payload.id,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
-    console.log("in dm reqUser:", requestUser);
+    // console.log("in dm reqUser:", requestUser);
     const userId = requestUser.id;
     const status = await this.chatRoomService.isNeedDmNoti(userId, _Data['roomName']);
     // ㄴ이거 반환값이 2보다 작으면 무조건 상대에게 가야함.
-    console.log("in dm _Data[recv]",_Data['receiver']);
+    // console.log("in dm _Data[recv]",_Data['receiver']);
     const targerUser = await this.userService.getUserByUserIntraId(_Data['receiver']);
-    console.log("in dm target:",targerUser);
+    // console.log("in dm target:",targerUser);
 
     if (status === true) {
       const friend = await this.userService.getChatSocketByIntraId(_Data['receiver']);
@@ -538,7 +538,7 @@ export class ChatGateway
       if (friend.length !== 0)
         friends.push(friend[0].chat_sockid);
       // roomName, user_id, msg, time으로 저장
-      console.log("in dm 2");
+      // console.log("in dm 2");
       await this.chatRoomService.saveMessage(_Data['roomName'], userId, _Data['message']);
       
       //ft-dm 시////////////////
@@ -553,22 +553,22 @@ export class ChatGateway
           this.dmAlertMap.set(targerUser.intra_id, new Map<string,number>().set(`${requestUser.intra_id}`,1));
         else
           this.dmAlertMap.get(targerUser.intra_id).set(`${requestUser.intra_id}`,1);
-        console.log("dmMap added!!!", this.dmAlertMap.get(targerUser.intra_id));
+        // console.log("dmMap added!!!", this.dmAlertMap.get(targerUser.intra_id));
       }
-      console.log("==================dm map ========== \n")
-      console.log(this.dmAlertMap.get(targerUser.intra_id));
-      console.log("recver : ",targerUser.intra_id);
-      console.log("==================dm map ========== \n")
+      // console.log("==================dm map ========== \n")
+      // console.log(this.dmAlertMap.get(targerUser.intra_id));
+      // console.log("recver : ",targerUser.intra_id);
+      // console.log("==================dm map ========== \n")
 
-      // console.log("test alert");
-      // console.log("---------receiver",receiver);
-      // // console.log("---------in temp",temp.get(`${payload.username}`)); //temp["insjang"]);
-      // console.log("---------in temp",this.dmAlertMap.get(`${receiver}`)); //temp["insjang"]);
-      // console.log("test alert");
-      // console.log(this.dmAlertMap.has(`${receiver}`));
-      // console.log(this.dmAlertMap.has('test'));
+      // // console.log("test alert");
+      // // console.log("---------receiver",receiver);
+      // // // console.log("---------in temp",temp.get(`${payload.username}`)); //temp["insjang"]);
+      // // console.log("---------in temp",this.dmAlertMap.get(`${receiver}`)); //temp["insjang"]);
+      // // console.log("test alert");
+      // // console.log(this.dmAlertMap.has(`${receiver}`));
+      // // console.log(this.dmAlertMap.has('test'));
       //ft-dm 시////////////////
-      console.log("in ft_dm :", friends);
+      // console.log("in ft_dm :", friends);
       await socket.broadcast.to(friends).emit('ft_dmAlert', {
         username: `${requestUser.username}`,
         receiver : targerUser.intra_id,
@@ -608,7 +608,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const requestUser = await this.userService.getUserByUserId(
@@ -636,7 +636,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const targetUser = await this.userService.getUserByUserName(
@@ -690,7 +690,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
@@ -738,7 +738,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const requestUser = await this.userService.getUserByUserId(
@@ -747,7 +747,7 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
-    console.log("in block : ", payload.username,_Data["targetUser"]);
+    // console.log("in block : ", payload.username,_Data["targetUser"]);
     if (requestUser.username == _Data["targetUser"])
       return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`,checktoken:true};
     if (await this.chatRoomService.isFriendEachOther(requestUser.id, targetUser.id) === true)
@@ -794,7 +794,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     // const user = await this.userService.getUserByUserId(payload.id);
@@ -817,7 +817,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
@@ -871,13 +871,13 @@ export class ChatGateway
     @MessageBody() _Data: string, ////roomName만 주셔도 됩니다.
   )
   {
-    // console.log("test doodooo");
+    // // console.log("test doodooo");
     let payload;
     try {
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     if (await this.chatRoomService.isEmptyRoom(_Data["roomName"])===true)
@@ -893,9 +893,9 @@ export class ChatGateway
     );
     const user = await this.userService.getUserByUserId(payload.id);
 
-    console.log("--------userUnlockList---------");
-    console.log(unlockedUsers);
-    console.log("--------userUnlockList---------");
+    // console.log("--------userUnlockList---------");
+    // console.log(unlockedUsers);
+    // console.log("--------userUnlockList---------");
 
     await socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
       username: `${user.username}(Admin)`,
@@ -926,7 +926,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const targetUser = await this.userService.getUserByUserName(
@@ -977,7 +977,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
@@ -995,8 +995,8 @@ export class ChatGateway
     await this.friendService.addFriend(userId,targetUserId);
     let targetList = [];
     targetList.push(recvUser.chat_sockid);
-    console.log("----------- add friend  test");
-    console.log(targetList);
+    // console.log("----------- add friend  test");
+    // console.log(targetList);
     await socket.broadcast.to(targetList).emit('ft_addfriend', {
       sender : user.username,
       receiver : recvUser.username,
@@ -1022,7 +1022,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const recvUser = await this.userService.getUserByUserId(payload.id);
@@ -1059,28 +1059,28 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false};
     }
     const user = await this.userService.getUserByUserId(payload.id);
-    // console.log("user - ", user);///
+    // // console.log("user - ", user);///
     if (user==undefined)
     {
-      console.log("token err in main friendlist");
+      // console.log("token err in main friendlist");
       return {checktoken:false};
     }
     let ret = await this.friendService.findFriendList(user);
-    // console.log(ret);
+    // // console.log(ret);
     let _return = [];
     ret.map((i) => {
       // if (this.dmAlertMap.has(user.username) === true)
-      //   console.log("has map?", this.dmAlertMap.get(user.username));
+      //   // console.log("has map?", this.dmAlertMap.get(user.username));
       // i["alert"] = this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`);
       i["alert"] = (this.dmAlertMap.has(`${user.intra_id}`) && this.dmAlertMap.get(`${user.intra_id}`).has(`${i.intra_id}`));//저장도 삭삭제제도  모모두  intra_id를 기준으로 할 것.
       // i["alert"] = (this.dmAlertMap.has(`${user.username}`) && this.dmAlertMap.get(`${user.username}`).has(`${i.intra_id}`));
 
 
-      // console.log( || this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`));
+      // // console.log( || this.dmAlertMap.get(`${payload.username}`).has(`${i.intra_id}`));
       _return.push(i);
     });
     /*
@@ -1104,7 +1104,7 @@ export class ChatGateway
       payload = await this.getPayload(socket);
       this.logger.log(`msg 전송: ${payload.username} ${socket.id}`);
     } catch (error) {
-      console.log('payloaderr in msg');
+      // console.log('payloaderr in msg');
       return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
     const reqUser = await this.userService.getUserById(payload.id);
@@ -1125,10 +1125,10 @@ export class ChatGateway
       return {success : false, faillog : `해당 유저가 ${log[targetUser.status]} 입니다.`,checktoken:true};
     }
     let targetList = [];
-    console.log('-------inviteChat-------');
-    console.log(_Data);
-    console.log(reqUser);
-    console.log('-------inviteChat-------');
+    // console.log('-------inviteChat-------');
+    // console.log(_Data);
+    // console.log(reqUser);
+    // console.log('-------inviteChat-------');
 
     // targetList.push(target[0].chat_sockid);
     targetList.push(targetUser.chat_sockid);
@@ -1220,7 +1220,7 @@ export class ChatGateway
     let payload; 
     try {
       payload = await this.getPayload(socket);
-      console.log('ft_changenickname!!! in chat');
+      // console.log('ft_changenickname!!! in chat');
       // await this.userService.connectChatSocket(payload.id, socket.id);
       this.logger.log(
         `chat 채널 connect 호출: ${payload.username}  ${socket.id}`,
@@ -1268,7 +1268,7 @@ export class ChatGateway
   // async handleLeaveRoomTokenError(
   //   @ConnectedSocket() socket: Socket,
   // ) {
-  //   console.log("=========== roomTokenError");
+  //   // console.log("=========== roomTokenError");
   //   const userArr = await this.chatRoomService.checkUserTokenError(socket.id);
   //   if (userArr.length === 0)
   //     return ;
@@ -1278,7 +1278,7 @@ export class ChatGateway
   //   if (room.length === 0)
   //     return ;
   //   const roomName = room[0];
-  //   console.log("=========== roomTokenError",roomName);
+  //   // console.log("=========== roomTokenError",roomName);
   //   await this.chatRoomService.leaveUserFromRoom(userId, roomName);
   //   if ((await this.chatRoomService.isEmptyRoom(roomName)) === true) {
   //     await this.chatRoomService.deleteChatInformation(roomName);

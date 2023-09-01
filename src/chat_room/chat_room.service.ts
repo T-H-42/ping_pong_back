@@ -17,7 +17,7 @@ export class ChatRoomService {
         ////
         // const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = '${roomName}';`
         const test = `select * from "chat_user" where "user_id" = ${userid} and "index" = $1;`
-        console.log("createRoom user",await this.chatRoomRepository.query(test, values));
+        // console.log("createRoom user",await this.chatRoomRepository.query(test, values));
         ///
     }
 
@@ -52,7 +52,7 @@ export class ChatRoomService {
     async dmListByUserName(userid: number)
     {
 
-        console.log("in dmlist API");
+        // console.log("in dmlist API");
         const query = `select "user"."username", "C"."index" from (select "chat_user"."user_id", "chat_user"."index" from (select "A"."index" from (select "index" from "chat_user" where "user_id"=${userid}) as "A" left join "chat_room" on ("chat_room"."index" = "A"."index" and "chat_room"."room_stat" = 3)) as "B" left join "chat_user" on ("B"."index" = "chat_user"."index" and "chat_user"."user_id" != ${userid})) as "C" left join "user" on ("user"."id" = "C"."user_id");`;
         return await this.chatRoomRepository.query(query);
     }
@@ -60,7 +60,7 @@ export class ChatRoomService {
     async joinUserToRoom(userid : number, roomName : string, right : number)
     {
         ///예외처리 붙어야 함.
-        console.log("in join UserToROOM");
+        // console.log("in join UserToROOM");
         const query = `insert into "chat_user"("index","user_id","right") values($1, ${userid} , ${right});`;
         const values = [roomName];
         await this.chatRoomRepository.query(query,values);
@@ -71,12 +71,12 @@ export class ChatRoomService {
 
     async leaveUserFromRoom(userid : number, roomName : string)
     {
-        console.log("in leave User in ROOM");
+        // console.log("in leave User in ROOM");
         // const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
         // update "chat_room" set "curr_user" = "curr_user"-1 where "index" = '${roomName}'`;
         if ((await this.isEmptyRoom(roomName)) === true)
         {
-            console.log("in leave User in ROOM - is Empty!");
+            // console.log("in leave User in ROOM - is Empty!");
             return ;
         }
         // const query = `delete from "chat_user" where "user_id"=${userid} and "index"='${roomName}'; 
@@ -91,10 +91,10 @@ export class ChatRoomService {
         const query2 = `delete from "chat_user" where "user_id"=${userid} and "index"=$1;`;
         await this.chatRoomRepository.query(query2, values);
         
-        console.log("----leaveUserFromRoom----");
+        // console.log("----leaveUserFromRoom----");
         const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1;`; //;
         await this.chatRoomRepository.query(query3, values);
-        console.log("----leaveUserFromRoom----");
+        // console.log("----leaveUserFromRoom----");
 
 
     }
@@ -105,9 +105,9 @@ export class ChatRoomService {
         const query = `select user_id from "chat_user" where "user_id"=${userid} and "index" = $1;`;
         const values = [roomName];
         const ret = await this.chatRoomRepository.query(query, values);
-        console.log("======= isNeedDmNoti? =======");
-        console.log(ret);
-        console.log("======= isNeedDmNoti? =======");
+        // console.log("======= isNeedDmNoti? =======");
+        // console.log(ret);
+        // console.log("======= isNeedDmNoti? =======");
 
         if (ret.length !== 2) //2
             return true;
@@ -120,7 +120,7 @@ export class ChatRoomService {
         const query = `select * from "chat_user" where ("index"=$1 and "user_id" = ${userid});`; ///
         const values = [roomName];
         const queryList = await this.chatRoomRepository.query(query,values);
-        console.log("is User InRoom?", queryList, "roomName :", roomName, "userid :", userid);
+        // console.log("is User InRoom?", queryList, "roomName :", roomName, "userid :", userid);
         if (queryList.length === 0)
             return false;
         return true;
@@ -145,9 +145,9 @@ export class ChatRoomService {
     {           
         //select "user_id" from "chat_user" where ("user_id" not in (select "blocked_user_id" from "chat_block" where index = 'hyna,nhwang' and "user_id" = 10) and "chat_user"."user_id"!=10 and index = 'hyna,nhwang');
         //as "A"
-        console.log("==========================================");
-        console.log("in getChatMessage : ", userId, roomName);
-        console.log("==========================================");
+        // console.log("==========================================");
+        // console.log("in getChatMessage : ", userId, roomName);
+        // console.log("==========================================");
 
 
         // origin
@@ -183,7 +183,7 @@ export class ChatRoomService {
         const query = `select "curr_user" from "chat_room" where "index" = $1 and "curr_user" > 0;`;
         const values = [roomName]
         const ret = await this.chatRoomRepository.query(query,values);
-        console.log("======af query=======");
+        // console.log("======af query=======");
         if (ret.length === 0)
             return true;
         return false;
@@ -197,12 +197,12 @@ export class ChatRoomService {
         await this.deleteBlockChatRoom(roomName);
         await this.deleteChatRoom(roomName);
         const dmCheck = await this.isDm(roomName); //not으로!
-        console.log("------------dm check------------");
-        console.log(dmCheck);
-        console.log("------------dm check------------");
+        // console.log("------------dm check------------");
+        // console.log(dmCheck);
+        // console.log("------------dm check------------");
         if (dmCheck.length===0) //dm이 아닌 경우
         {
-            console.log("------------dm check scope!!!!?????------------");
+            // console.log("------------dm check scope!!!!?????------------");
             await this.deleteChatLog(roomName);
         }
         ///dm이 아닐 경우! message delete!
@@ -474,20 +474,20 @@ export class ChatRoomService {
 
     async catchErrorRoom(sockid:string)
     {
-        console.log("=========== roomTokenError");
+        // console.log("=========== roomTokenError");
         const userArr = await this.checkUserTokenError(sockid);
         if (userArr.length === 0)
           return ;
-        console.log("=========== roomTokenError",userArr);
+        // console.log("=========== roomTokenError",userArr);
         
         const user = userArr[0];
         const userId = user.id;
         const room = await this.checkRoomTokenError(userId);
-        console.log("=========== roomTokenError-room",room);
+        // console.log("=========== roomTokenError-room",room);
         if (room.length === 0)
           return ;
         const roomName = room[0].index;
-        console.log("=========== roomTokenError",roomName);
+        // console.log("=========== roomTokenError",roomName);
         await this.leaveUserFromRoom(userId, roomName);
         if ((await this.isEmptyRoom(roomName)) === true) {
           await this.deleteChatInformation(roomName);
@@ -516,9 +516,9 @@ export class ChatRoomService {
     {
         const query = `select "B"."index" from (select "A"."index", "chat_user"."user_id" from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = ${userid};`
         const ret = await this.chatRoomRepository.query(query);
-        console.log("??????disconnnn");
-        console.log(ret);
-        console.log("??????disconnnn");
+        // console.log("??????disconnnn");
+        // console.log(ret);
+        // console.log("??????disconnnn");
         return ret;
         
     }
@@ -542,7 +542,7 @@ export class ChatRoomService {
     //             }
     //         });
     //     });
-    //     console.log("check in preventInjection :", _check);
+    //     // console.log("check in preventInjection :", _check);
     //     if (_check == false)
     //         return false;
     //     return true;

@@ -51,37 +51,37 @@ export class UserService {
   
   async signIn(loginDto: LoginDto, res: Response) {
     const { code } = loginDto;
-    console.log('code', code);
+    // console.log('code', code);
     //findOne
-    // console.log("test not loged in");
+    // // console.log("test not loged in");
     /////---------------------------- for test except 42 auth----------------------------
     // const oauthConfig = config.get('oauth');
-    // console.log(
+    // // console.log(
     //   '======================================== sigin in ===============================',
     // );
-    // console.log('redir', oauthConfig.oauth_redirect_uri);
+    // // console.log('redir', oauthConfig.oauth_redirect_uri);
     const url = `https://api.intra.42.fr/oauth/token?grant_type=authorization_code&client_id=${process.env.REACT_APP_OAUTH_ID}&client_secret=${process.env.REACT_APP_OAUTH_SECRET}&code=${code}&redirect_uri=${process.env.REACT_APP_OAUTH_REDIRECT_URI}`; //http://10.19.210.104:3000/redirect;
     const { data } = await firstValueFrom(
       this.httpService.post(url).pipe(
         catchError((error: AxiosError) => {
           if (error.response) {
-            console.log('test signin ' + error.response);
+            // console.log('test signin ' + error.response);
             throw new HttpException(error.response.data, error.response.status);
           } else {
-            console.log('이 로그가 찍히면 42서버가 문제');
-            console.log(error);
+            // console.log('이 로그가 찍히면 42서버가 문제');
+            // console.log(error);
             throw new InternalServerErrorException();
           }
         }),
       ),
     );
-    // console.log(
+    // // console.log(
     //   '======================================== sigin in2 ===============================',
     // );
     const headers = {
       Authorization: `Bearer ${data.access_token}`,
     };
-    // console.log(data.access_token);
+    // // console.log(data.access_token);
     const _url = 'https://api.intra.42.fr/v2/me';
     const response = await firstValueFrom(
       this.httpService.get(_url, { headers }).pipe(
@@ -95,9 +95,9 @@ export class UserService {
     );
     /////---------------------------- for test except 42 auth----------------------------
 
-    // console.log("========");
-    // console.log('response username ', response.data.login);
-    // console.log("========");
+    // // console.log("========");
+    // // console.log('response username ', response.data.login);
+    // // console.log("========");
 
     let user = await this.userRepository.findOne({
       where: {
@@ -106,7 +106,7 @@ export class UserService {
     });
     let isFirstLogin = false;
     if (!user) {
-      console.log("user doesn't exist");
+      // console.log("user doesn't exist");
       // <<<<<<< HEAD
       //       const _user = await this.userRepository.createUser(response.data.login, response.data.email);
       //       //////////////////////add///////////////////
@@ -142,31 +142,31 @@ export class UserService {
     };
     if (user.socketid !== null)
     {
-      console.log('===========ttttttt3',user.socketid);
+      // console.log('===========ttttttt3',user.socketid);
       throw new UnauthorizedException('Already Logged in');
     }
     //////////////중복 로그인 방지 위해 추가했습니다. 던지는 것 까지는 잘되는것 같은데, 프론트에서 받는 부분 구현되면 될 것 같습니다.-nhwang
     // try {
-    //   console.log('===========ttttttt2');
+    //   // console.log('===========ttttttt2');
     //   if (user.socketid !== null)
     //   {
-    //     console.log('===========ttttttt3',user.socketid);
+    //     // console.log('===========ttttttt3',user.socketid);
     //     return new UnauthorizedException('Already Logged in');
     //   }
     // }
 
     // catch(error)
     // {
-    //   console.log('===========ttttttt4');
+    //   // console.log('===========ttttttt4');
     //   thorw new UnauthorizedException('UnauthorizedException!');
     // }
 
     const accessToken = await this.jwtService.sign(payload);
-    console.log("Token :",accessToken);
+    // console.log("Token :",accessToken);
     //////////////////////add///////////////////
     
     if (user.two_factor_authentication_status === true) {
-      console.log('user exist');
+      // console.log('user exist');
       await this.sendMail(user.username);
       return res.send({
         two_factor_authentication_status: true,
@@ -178,7 +178,7 @@ export class UserService {
 
     ////////////////////////////////////////////////////////////////////////////////////
     const responseWithToken = await this.setToken(user, res);
-    // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
+    // // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
     return responseWithToken.send({
       two_factor_authentication_status: false,
       username: user.username,
@@ -201,7 +201,7 @@ export class UserService {
     const accessToken = await this.jwtService.sign(payload);
     await res.setHeader('Authorization', 'Bearer ' + accessToken);
     res.cookie('jwt', accessToken);
-    console.log('~~~~~~~~토큰 발급 ', accessToken);
+    // console.log('~~~~~~~~토큰 발급 ', accessToken);
     return res;
     // return res.send();
   }
@@ -211,7 +211,7 @@ export class UserService {
     const buffer = crypto.randomBytes(digits);
     const randomValue = parseInt(buffer.toString('hex'), 16);
     const randomCode = randomValue % 10 ** digits;
-    console.log(randomCode);
+    // console.log(randomCode);
 
     // const username = loginDto.username;
     const user = await this.userRepository.findOne({ where: { username } });
@@ -234,7 +234,7 @@ export class UserService {
     if (
       user.two_factor_authentication_code === two_factor_authentication_code
     ) {
-      // console.log("2way_auth_user", user);
+      // // console.log("2way_auth_user", user);
       const test = await this.setToken(user, res);
       const payload = {
         username: user.username,
@@ -245,14 +245,14 @@ export class UserService {
       //       return test.send({accessToken});
       //     }
       //     else {
-      //       console.log("2way_auth_user ::: fail token");
+      //       // console.log("2way_auth_user ::: fail token");
       // =======
       //////////add_for_another_com///////
 
       return test.send({ accessToken });
       // return this.setToken(user.username, res);
     } else {
-      console.log('2way_auth_user ::: fail token');
+      // console.log('2way_auth_user ::: fail token');
       // >>>>>>> develop
       throw new UnauthorizedException('failed auth_code for 2Auth user');
     }
@@ -286,12 +286,12 @@ export class UserService {
   // }
 
   async disconnectGameSocket(id: number | undefined) {
-    console.log('disconnectGameSocket');
+    // console.log('disconnectGameSocket');
     await this.userRepository.update({ id }, { game_sockid: null });
   }
 
   // async disconnectGameSocket(username: string | undefined) {
-  //   console.log('disconnectGameSocket');
+  //   // console.log('disconnectGameSocket');
   //   await this.userRepository.update({ username }, { game_sockid: null });
   // }
 
@@ -341,9 +341,9 @@ export class UserService {
   // async disconnectChatSocket(username: string) { ///userId : number
   //   await this.userRepository.update({ username }, { chat_sockid: null });
   //   const user = await this.getUserByUserName(username);
-  //   // console.log("test in disconnect");
-  //   // console.log(user);
-  //   // console.log("test in disconnect");
+  //   // // console.log("test in disconnect");
+  //   // // console.log(user);
+  //   // // console.log("test in disconnect");
   //   const query = `delete from "chat_user" where "user_id"=${user.id};`; ///delete chat_user에서 일치하는 것 전부 삭제
   //   await this.userRepository.query(query);
   //   // dm은 삭제가 안되더라도, 일반 채팅방일 경우 삭제하면 owner에 대한 처리 어떻게 할지?
@@ -352,9 +352,9 @@ export class UserService {
   async disconnectChatSocket(id: number) { ///userId : number
     await this.userRepository.update({ id }, { chat_sockid: null });
     const user = await this.getUserByUserId(id);
-    // console.log("test in disconnect");
-    // console.log(user);
-    // console.log("test in disconnect");
+    // // console.log("test in disconnect");
+    // // console.log(user);
+    // // console.log("test in disconnect");
     const query = `delete from "chat_user" where "user_id"=${user.id};`; ///delete chat_user에서 일치하는 것 전부 삭제
     await this.userRepository.query(query);
     
@@ -374,9 +374,9 @@ export class UserService {
   async getUserNameByChatSockId(chat_socketid: string) {
     const query =
       await `select "username" from "user" where "chat_sockid" = '${chat_socketid}';`;
-    console.log('in chat_getusername');
-    console.log(query);
-    console.log('in chat_getusername');
+    // console.log('in chat_getusername');
+    // console.log(query);
+    // console.log('in chat_getusername');
     return await this.userRepository.query(query);
   }
 
@@ -401,13 +401,13 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
     //id null?
-    console.log("profile1------");
-    console.log(user);
+    // console.log("profile1------");
+    // console.log(user);
 
     const userAchievement = await this.userRepository.query(
       `select "achievement" from achievement where user_id = ${user[0].id};`,
     );
-    console.log("profile2------");
+    // console.log("profile2------");
 
     const userGameHistory = await this.userRepository.query(
       // `select winner, loser, time from game where (game.finished and (game.winner = ${user[0].id} or game.loser = ${user[0].id}));`,
@@ -423,19 +423,19 @@ export class UserService {
     
       */
       );
-    console.log("profile3------");
+    // console.log("profile3------");
 
     const userProfile = await {
       ...user[0],
       achievements: [] as string[],
       userGameHistory,
     };
-    console.log("profile4------");
+    // console.log("profile4------");
 
     await userAchievement.map((achievement) =>
       userProfile.achievements.push(achievement.achievement),
     );
-    console.log("profile5");
+    // console.log("profile5");
 
     return await userProfile;
   }
@@ -538,14 +538,14 @@ export class UserService {
         });
       }
     user.username = nickname;
-    // console.log("user!!!!!!!!!!");
-    // console.log(user);
-    // console.log("user!!!!!!!!!!");
+    // // console.log("user!!!!!!!!!!");
+    // // console.log(user);
+    // // console.log("user!!!!!!!!!!");
 
     const _res = await this.setToken(user, res);
-    console.log("in changeNick Name API : user!!!!!!!!!!");
-    console.log(_res);
-    console.log("in changeNick Name API : user!!!!!!!!!!");
+    // console.log("in changeNick Name API : user!!!!!!!!!!");
+    // console.log(_res);
+    // console.log("in changeNick Name API : user!!!!!!!!!!");
 
     return (await _res.send());
     

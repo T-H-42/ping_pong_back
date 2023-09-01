@@ -101,7 +101,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         id: user.id,
         username: user.username,
       }
-      console.log('match queue 제거');
+      // console.log('match queue 제거');
       this.matchQueue = this.matchQueue.filter(item => item !== makePayload.id);
       await this.handleAbnormalExit(makePayload);
       await this.userService.catchErrorFunctionGame(socket.id);/////nhwang
@@ -161,11 +161,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // 게임룸에 있을 때 비정상 종료한 경우 처리
   async handleAbnormalExit(payload: any) {
-    console.log('비정상 종료 감지');
+    // console.log('비정상 종료 감지');
     const roomName = this.RoomConnectedSocket.get(payload.id);
     if (roomName) {
-      console.log('게임방 만들어진 상태');
-      console.log(this.gameRooms[roomName].users);
+      // console.log('게임방 만들어진 상태');
+      // console.log(this.gameRooms[roomName].users);
       let status;
       const remainingUserId = this.gameRooms[roomName].users.find(item => item !== payload.id);
       const winnerUser = await this.userService.getUserById(remainingUserId);
@@ -209,7 +209,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           await socket.broadcast.to(socketList).emit('ft_trigger', {
             success:true, checktoken:true,
           });
-          console.log("in gameSock leave-",socketList);
+          // console.log("in gameSock leave-",socketList);
           //////
         }
       }
@@ -262,8 +262,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return {checktoken: false};
     }
     const owner = await this.userService.getUserById(payload.id);
-    console.log('방장 이름', owner.intra_id);
-    console.log('게스트 이름', _Data);
+    // console.log('방장 이름', owner.intra_id);
+    // console.log('게스트 이름', _Data);
     const guestUser = await this.userService.getUserByUserIntraId(_Data['guestName']);
     // 자기 자신을 초대한 경우  
     if (owner.intra_id === _Data['guestName']) {
@@ -282,8 +282,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
     }
     // 상대방에게 초대 알림 
-    console.log("gamesock in chatroom", guestUser.username);
-    console.log("gamesock in chatroom", owner.username);
+    // console.log("gamesock in chatroom", guestUser.username);
+    // console.log("gamesock in chatroom", owner.username);
     socket.to(guestUser.game_sockid).emit('ft_invite_game', {
       sender: owner.username,
       checktoken: true,
@@ -394,14 +394,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       const isOwner = users.indexOf(id) === 0 ? true : false;
       socket.join(roomName);
-      console.log(socket.id);
+      // console.log(socket.id);
 
       await this.userService.settingStatus(id, 4);
       ///////
       const socketList = await this.friendService.getFriendGameSocket(
         user.id,
       );
-      console.log("in gameSock join-",socketList);
+      // console.log("in gameSock join-",socketList);
       await socket.broadcast.to(socketList).emit('ft_trigger', {
         success:true,
         checktoken: true,
@@ -430,8 +430,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.gameRooms[roomName].speedMode = data.speedMode;
     this.gameRooms[roomName].velocityX; // *= data.speed;
     this.gameRooms[roomName].velocityY; // *= data.speed;
-    console.log(`this.gameRooms[roomName].maxScore: ${this.gameRooms[roomName].maxScore}`);
-    console.log(`this.gameRooms[roomName].speedMode: ${this.gameRooms[roomName].speedMode}`);
+    // console.log(`this.gameRooms[roomName].maxScore: ${this.gameRooms[roomName].maxScore}`);
+    // console.log(`this.gameRooms[roomName].speedMode: ${this.gameRooms[roomName].speedMode}`);
     socket.to(roomName).emit('ft_game_setting_success', {
       data,
       checktoken: true,
@@ -445,8 +445,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
     @MessageBody() roomName: string) {
     this.logger.log(`Game 채널 ft_game_ready 호출`);
-    // console.log('roomName',roomName[0]);
-    // console.log('guestReady',roomName[1]);
+    // // console.log('roomName',roomName[0]);
+    // // console.log('guestReady',roomName[1]);
     socket.to(roomName).emit('ft_game_ready_success', {
       roomName,
       checktoken : true,
@@ -604,7 +604,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async finishGame(gameRoom: GameInformation, roomName: string) {
-    console.log('finishGame');
+    // console.log('finishGame');
     await clearInterval(gameRoom.timer);
     const winnerId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
     const loserUserId = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];
@@ -617,7 +617,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return await this.handleLeaveRoom(this.gameRooms[roomName].users, roomName);
   }
   // async finishGame(gameRoom: GameInformation, roomName: string) {
-  //   console.log('finishGame');
+  //   // console.log('finishGame');
   //   await clearInterval(gameRoom.timer);
   //   const winnerUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[0] : gameRoom.users[1];
   //   const loserUsername = gameRoom.element.score.left === gameRoom.maxScore ? gameRoom.users[1] : gameRoom.users[0];
