@@ -266,11 +266,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return {checktoken: false};
     }
     const owner = await this.userService.getUserById(payload.id);
-    console.log('방장 이름', owner.username);
+    console.log('방장 이름', owner.intra_id);
     console.log('게스트 이름', _Data);
-    const guestUser = await this.userService.getUserByUserName(_Data['guestName']);
+    const guestUser = await this.userService.getUserByUserIntraId(_Data['guestName']);
     // 자기 자신을 초대한 경우  
-    if (owner.username === _Data['guestName']) {
+    if (owner.intra_id === _Data['guestName']) {
       return {
         success: false,
         faillog: '자기 자신을 초대할 수 없습니다.',
