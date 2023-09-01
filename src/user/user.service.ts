@@ -384,6 +384,7 @@ export class UserService {
     // console.log("test in disconnect");
     const query = `delete from "chat_user" where "user_id"=${user.id};`; ///delete chat_user에서 일치하는 것 전부 삭제
     await this.userRepository.query(query);
+    
     // dm은 삭제가 안되더라도, 일반 채팅방일 경우 삭제하면 owner에 대한 처리 어떻게 할지?
     // 혹은 방을 터트릴지... 이런거 다 생각하긴 해야함.
   }

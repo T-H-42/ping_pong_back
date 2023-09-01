@@ -512,6 +512,16 @@ export class ChatRoomService {
         return room;
     }
 
+    async roomCheckDisconnect(userid : number)
+    {
+        const query = `select "B"."index" from (select "A"."index", "chat_user"."user_id" from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = ${userid};`
+        const ret = await this.chatRoomRepository.query(query);
+        console.log("??????disconnnn");
+        console.log(ret);
+        console.log("??????disconnnn");
+        return ret;
+        
+    }
 
 
     // async preventInjection(userInputAny : any)

@@ -119,10 +119,20 @@ export class ChatGateway
     );
     if (!socketList || socketList.length === 0)
       return ;
-    socket.broadcast.to(socketList).emit('ft_trigger', {
+    if (socketList.length === 0)
+    {
+      socket.emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    } 
+    else
+    {
+      socket.broadcast.to(socketList).emit('ft_trigger', {
       success:true,
       checktoken:true,
     });
+    }
     socket.emit('ft_tomain', {
       success:true,
       checktoken:true,
@@ -137,7 +147,35 @@ export class ChatGateway
     try {
       payload = await this.getPayload(socket);
       console.log('disconnect - in chat', payload.username); //현재 기존의 것을 기준으로 disconnect 하고 있음.
-      await this.userService.disconnectChatSocket(payload.id);
+      const room = await this.chatRoomService.roomCheckDisconnect(payload.id);
+      if (room.length !== 0)
+      {
+        const roomName=room[0].index;
+        await this.chatRoomService.leaveUserFromRoom(payload.id, roomName);
+        if ((await this.chatRoomService.isEmptyRoom(roomName)) === true) {
+            //방에 인원 없으면 메시지 로그 다 없애기 리턴값 찍어보기, 테스트 필요함
+            await this.chatRoomService.deleteChatInformation(roomName);
+            const list = await this.chatRoomService.getRoomList();
+            socket.broadcast.emit('room-list', list);
+            socket.leave(roomName);
+        }
+      }
+      // await this.userService.disconnectChatSocket(payload.id);
+      //////
+      /*
+      const query = `select * from "chat_room"`;
+      ㄴ> 모든 룸 네임 확인
+      
+      select * from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index";
+      ㄴ> as B
+
+      select "A"."index" from (select * from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = 11;
+      
+      
+      
+      select "B"."index" from (select "A"."index", "chat_user"."user_id" from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = ${payload.id};
+      ㄴ> 
+      */
       /////////여기서 chat 관련 데이터 다 삭제
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
@@ -158,12 +196,21 @@ export class ChatGateway
     console.log("---------");
     
     // await this.chatRoomService.deleteChatInformation(roomName);
-    
-    socket.broadcast.to(socketList).emit('ft_trigger', {
-      success:true,
-      checktoken:true,
-    });
-    
+    //[]
+    if (socketList.length === 0)
+    {
+      socket.emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    } 
+    else
+    {
+      socket.broadcast.to(socketList).emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    }
   }
   ////////////////////////////////////// - channel dis/connection - end //////////////////////////////////////
 
