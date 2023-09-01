@@ -79,6 +79,8 @@ export class UserService {
     }
   }
 
+
+  
   async signIn(loginDto: LoginDto, res: Response) {
     const { code } = loginDto;
     console.log('code', code);
@@ -134,6 +136,7 @@ export class UserService {
         intra_id: response.data.login,
       },
     });
+    let isFirstLogin = false;
     if (!user) {
       console.log("user doesn't exist");
       // <<<<<<< HEAD
@@ -155,6 +158,7 @@ export class UserService {
         response.data.login,
         response.data.email,
       );
+      isFirstLogin = true;
       const _res = await this.setToken(_user, res);
       user = await this.userRepository.findOne({
         where: {
@@ -199,6 +203,7 @@ export class UserService {
       return res.send({
         two_factor_authentication_status: true,
         username: user.username,
+        isFirstLogin,
         // accessToken,
       });
     }
@@ -210,10 +215,14 @@ export class UserService {
       two_factor_authentication_status: false,
       username: user.username,
       accessToken,
+      isFirstLogin,
     });
     //origin response
     //return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
   }
+
+
+
 
   async setToken(user: User, res: Response) {
     const payload = {
@@ -336,6 +345,15 @@ export class UserService {
     return user;
   }
   
+  async getUserByUserIntraId(intra_id: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: {
+        intra_id: intra_id,
+      },
+    });
+    return user;
+  }
+
   async getUserByUserId(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: {
@@ -396,6 +414,12 @@ export class UserService {
   async getChatSocketByUserName(username: string) {
     const query =
       await `select "chat_sockid" from "user" where "username" = '${username}';`;
+    return await this.userRepository.query(query);
+  }
+
+  async getChatSocketByIntraId(intraid: string) {
+    const query =
+      await `select "chat_sockid" from "user" where "intra_id" = '${intraid}';`;
     return await this.userRepository.query(query);
   }
 

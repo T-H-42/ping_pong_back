@@ -265,12 +265,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.error('fail GameGateway handleInviteGame', error);
       return {checktoken: false};
     }
-    const ownerName = payload.username;
-    console.log('방장 이름', ownerName);
+    const owner = await this.userService.getUserById(payload.id);
+    console.log('방장 이름', owner.username);
     console.log('게스트 이름', _Data);
     const guestUser = await this.userService.getUserByUserName(_Data['guestName']);
     // 자기 자신을 초대한 경우  
-    if (ownerName === _Data['guestName']) {
+    if (owner.username === _Data['guestName']) {
       return {
         success: false,
         faillog: '자기 자신을 초대할 수 없습니다.',
@@ -287,9 +287,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     // 상대방에게 초대 알림 
     console.log("gamesock in chatroom", guestUser.username);
-    console.log("gamesock in chatroom", ownerName);
+    console.log("gamesock in chatroom", owner.username);
     socket.to(guestUser.game_sockid).emit('ft_invite_game', {
-      sender: ownerName,
+      sender: owner.username,
       checktoken: true,
     });
     return {
