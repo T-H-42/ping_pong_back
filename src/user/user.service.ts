@@ -392,7 +392,7 @@ export class UserService {
   }
 
   async getUserProfile(username: string) {
-    const userQuery = `select id, username, status, ladder_lv, image_url, "two_factor_authentication_status" from "user" where "username" = $1;`;///2차 인증 추가하였습니다. nhwang
+    const userQuery = `select id, username, status, ladder_lv, image_url, intra_id, "two_factor_authentication_status" from "user" where "username" = $1;`;///2차 인증 추가하였습니다. nhwang
     const values = [username];
     const user = await this.userRepository.query(userQuery,values);
 
