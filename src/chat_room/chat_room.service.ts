@@ -91,8 +91,11 @@ export class ChatRoomService {
         const query2 = `delete from "chat_user" where "user_id"=${userid} and "index"=$1;`;
         await this.chatRoomRepository.query(query2, values);
         
-        const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1`;
+        console.log("----leaveUserFromRoom----");
+        const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1;`; //;
         await this.chatRoomRepository.query(query3, values);
+        console.log("----leaveUserFromRoom----");
+
 
     }
     
@@ -181,7 +184,7 @@ export class ChatRoomService {
         const values = [roomName]
         const ret = await this.chatRoomRepository.query(query,values);
         console.log("======af query=======");
-        if (ret.length=== 0)
+        if (ret.length === 0)
             return true;
         return false;
     }
@@ -509,6 +512,16 @@ export class ChatRoomService {
         return room;
     }
 
+    async roomCheckDisconnect(userid : number)
+    {
+        const query = `select "B"."index" from (select "A"."index", "chat_user"."user_id" from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = ${userid};`
+        const ret = await this.chatRoomRepository.query(query);
+        console.log("??????disconnnn");
+        console.log(ret);
+        console.log("??????disconnnn");
+        return ret;
+        
+    }
 
 
     // async preventInjection(userInputAny : any)

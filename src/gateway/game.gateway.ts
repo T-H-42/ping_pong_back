@@ -171,21 +171,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const winnerUser = await this.userService.getUserById(remainingUserId);
       const loserUser = await this.userService.getUserById(payload.id);
       if (!winnerUser) {
-        console.log(remainingUserId, ' 얘도 나간듯?');
         return;
       }
       if (!this.gameRooms[roomName]) {
-        console.log('게임방 없음 아마 front에러');
         return;
       }
       if (this.gameRooms[roomName].timer) {
-        console.log('게임중 나감');
         clearInterval(this.gameRooms[roomName].timer);
         await this.userService.leaderScoreUpdate(winnerUser, loserUser);
         await this.gameService.finishGame(winnerUser, loserUser);
         status = 2;
       } else {
-        this.logger.log(`setting중 나감`);
         status = 1;
       }
       // socket.to(roomName).emit('ft_enemy_leave_room', {
@@ -375,6 +371,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleJoinRoom(users: number[], roomName: string) {
     const ownerUser = await this.userService.getUserById(users[0]);
     const guestUser = await this.userService.getUserById(users[1]);
+    if (!ownerUser || !guestUser) {
+      delete this.gameRooms[roomName];
+      return ;
+    }
     const usernames = { 
       ownerName: ownerUser.username, 
       guestName: guestUser.username
@@ -385,7 +385,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const user = await this.userService.getUserById(id);
       const socket = this.nsp.sockets.get(user.game_sockid);
       if (!socket) {
-        console.log('socket 왜 null?');
+        const payload = {
+          id: id,
+          username: user.username,
+        }
+        await this.handleAbnormalExit(payload);
         return;
       }
       const isOwner = users.indexOf(id) === 0 ? true : false;
@@ -503,7 +507,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const gameRoom = this.gameRooms[data.roomName];
     if (!gameRoom) {
-      console.log('paddle move 그만 보내');
       return ;
     }
     data.isOwner ? gameRoom.leftPaddleStatus = data.paddleStatus : gameRoom.rightPaddleStatus = data.paddleStatus;
