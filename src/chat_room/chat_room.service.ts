@@ -181,7 +181,7 @@ export class ChatRoomService {
         const values = [roomName]
         const ret = await this.chatRoomRepository.query(query,values);
         console.log("======af query=======");
-        if (ret.length=== 0)
+        if (ret.length === 0)
             return true;
         return false;
     }

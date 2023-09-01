@@ -1079,10 +1079,10 @@ export class ChatGateway
       return {success : false, faillog : `해당 유저가 ${log[targetUser.status]} 입니다.`,checktoken:true};
     }
     let targetList = [];
-    console.log('--------------');
+    console.log('-------inviteChat-------');
     console.log(_Data);
-    console.log('--------------');
-
+    console.log(reqUser);
+    console.log('-------inviteChat-------');
 
     // targetList.push(target[0].chat_sockid);
     targetList.push(targetUser.chat_sockid);
