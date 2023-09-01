@@ -134,6 +134,7 @@ export class UserService {
         intra_id: response.data.login,
       },
     });
+    let isFirstLogin = false;
     if (!user) {
       console.log("user doesn't exist");
       // <<<<<<< HEAD
@@ -155,6 +156,7 @@ export class UserService {
         response.data.login,
         response.data.email,
       );
+      isFirstLogin = true;
       const _res = await this.setToken(_user, res);
       user = await this.userRepository.findOne({
         where: {
@@ -199,6 +201,7 @@ export class UserService {
       return res.send({
         two_factor_authentication_status: true,
         username: user.username,
+        isFirstLogin,
         // accessToken,
       });
     }
@@ -210,6 +213,7 @@ export class UserService {
       two_factor_authentication_status: false,
       username: user.username,
       accessToken,
+      isFirstLogin,
     });
     //origin response
     //return responseWithToken.send({two_factor_authentication_status:false, username: user.username});
