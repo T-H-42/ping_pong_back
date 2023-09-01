@@ -335,6 +335,8 @@ export class ChatRoomService {
         const query = `select "right" from "chat_user" where "index" = $1 and  "user_id"=${targetUserId};`;
         const values = [roomName];
         const obj = await this.chatRoomRepository.query(query, values);
+        if (obj.length === 0)
+            return;
         return (obj[0].right);
     }
     async setAdmin(roomName : string, targetUserId :number)
