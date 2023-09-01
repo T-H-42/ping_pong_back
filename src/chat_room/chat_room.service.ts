@@ -91,8 +91,11 @@ export class ChatRoomService {
         const query2 = `delete from "chat_user" where "user_id"=${userid} and "index"=$1;`;
         await this.chatRoomRepository.query(query2, values);
         
-        const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1`;
+        console.log("----leaveUserFromRoom----");
+        const query3 = `update "chat_room" set "curr_user" = "curr_user"-1 where "index" = $1;`; //;
         await this.chatRoomRepository.query(query3, values);
+        console.log("----leaveUserFromRoom----");
+
 
     }
     
