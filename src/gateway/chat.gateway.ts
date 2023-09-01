@@ -119,10 +119,20 @@ export class ChatGateway
     );
     if (!socketList || socketList.length === 0)
       return ;
-    socket.broadcast.to(socketList).emit('ft_trigger', {
+    if (socketList.length === 0)
+    {
+      socket.emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    } 
+    else
+    {
+      socket.broadcast.to(socketList).emit('ft_trigger', {
       success:true,
       checktoken:true,
     });
+    }
     socket.emit('ft_tomain', {
       success:true,
       checktoken:true,
@@ -137,7 +147,35 @@ export class ChatGateway
     try {
       payload = await this.getPayload(socket);
       console.log('disconnect - in chat', payload.username); //현재 기존의 것을 기준으로 disconnect 하고 있음.
-      await this.userService.disconnectChatSocket(payload.id);
+      const room = await this.chatRoomService.roomCheckDisconnect(payload.id);
+      if (room.length !== 0)
+      {
+        const roomName=room[0].index;
+        await this.chatRoomService.leaveUserFromRoom(payload.id, roomName);
+        if ((await this.chatRoomService.isEmptyRoom(roomName)) === true) {
+            //방에 인원 없으면 메시지 로그 다 없애기 리턴값 찍어보기, 테스트 필요함
+            await this.chatRoomService.deleteChatInformation(roomName);
+            const list = await this.chatRoomService.getRoomList();
+            socket.broadcast.emit('room-list', list);
+            socket.leave(roomName);
+        }
+      }
+      // await this.userService.disconnectChatSocket(payload.id);
+      //////
+      /*
+      const query = `select * from "chat_room"`;
+      ㄴ> 모든 룸 네임 확인
+      
+      select * from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index";
+      ㄴ> as B
+
+      select "A"."index" from (select * from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = 11;
+      
+      
+      
+      select "B"."index" from (select "A"."index", "chat_user"."user_id" from (select * from "chat_room") as "A" left join chat_user on "chat_user"."index" = "A"."index") as "B" where "B"."user_id" = ${payload.id};
+      ㄴ> 
+      */
       /////////여기서 chat 관련 데이터 다 삭제
       this.logger.log(`Sock_disconnected ${payload.username} ${socket.id}`);
     } catch (error) {
@@ -158,12 +196,21 @@ export class ChatGateway
     console.log("---------");
     
     // await this.chatRoomService.deleteChatInformation(roomName);
-    
-    socket.broadcast.to(socketList).emit('ft_trigger', {
-      success:true,
-      checktoken:true,
-    });
-    
+    //[]
+    if (socketList.length === 0)
+    {
+      socket.emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    } 
+    else
+    {
+      socket.broadcast.to(socketList).emit('ft_trigger', {
+        success:true,
+        checktoken:true,
+      });
+    }
   }
   ////////////////////////////////////// - channel dis/connection - end //////////////////////////////////////
 
@@ -327,7 +374,7 @@ export class ChatGateway
 
     await this.userService.settingStatus(payload.id, 3);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}`,
+      username: `${requestUser.username}`,
       message: `님이 ${_Data['roomName']}에 참가했습니다.`,
       checktoken:true,
     });
@@ -343,8 +390,6 @@ export class ChatGateway
     {username:daskim2,'''}
     {username:daskim3,'''}
   ]
-
-  
   */
 
   // 채팅방(룸) 탈주
@@ -611,7 +656,7 @@ export class ChatGateway
       return { success : false, faillog : `이미 관리자인 유저입니다.` ,checktoken:true}; //right가 2인 유저는 리턴으로 막기. 값은 약속이 필요.
     await this.chatRoomService.setAdmin(_Data["roomName"], targetUserId);
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${payload.username}(Admin)`,
+      username: `${user.username}(Admin)`, //  username: `${payload.username}(Admin)`,  username: `${user.username}(Admin)`,
       checktoken:true,
       message: `${targetUser.username}님이 관리자 임명 되었습니다.`,
     });
@@ -703,7 +748,8 @@ export class ChatGateway
     const targetUser = await this.userService.getUserByUserName(
       _Data["targetUser"],
       );
-    if (payload.username == _Data["targetUser"])
+    console.log("in block : ", payload.username,_Data["targetUser"]);
+    if (requestUser.username == _Data["targetUser"])
       return {success : false, faillog : `자기 자신에 대해 처리할 수 없습니다.`,checktoken:true};
     if (await this.chatRoomService.isFriendEachOther(requestUser.id, targetUser.id) === true)
       return {success : false, faillog : `친구끼리는 차단할 수 없습니다.`,checktoken:true};
@@ -733,7 +779,7 @@ export class ChatGateway
     //   message: `${payload.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     // };
     socket.emit('ft_message', {
-      username: `${requestUser.username}(Admin)`,
+      username: `${requestUser.username}`,
       checktoken:true,
       message: `${requestUser.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     });
@@ -1062,6 +1108,7 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
+    const reqUser = await this.userService.getUserById(payload.id);
     const targetUser = await this.userService.getUserByUserIntraId(
       _Data["targetUser"],
       );
@@ -1079,17 +1126,17 @@ export class ChatGateway
       return {success : false, faillog : `해당 유저가 ${log[targetUser.status]} 입니다.`,checktoken:true};
     }
     let targetList = [];
-    console.log('--------------');
+    console.log('-------inviteChat-------');
     console.log(_Data);
-    console.log('--------------');
-
+    console.log(reqUser);
+    console.log('-------inviteChat-------');
 
     // targetList.push(target[0].chat_sockid);
     targetList.push(targetUser.chat_sockid);
     await socket.broadcast.to(targetList).emit('ft_invitechat', { //// 초대받은 대상소켓에게 emit합니다.
       index : _Data["roomName"],
       success : true,
-      sender : `${payload.username}`,
+      sender : `${reqUser.username}`, //sender : `${payload.username}`, vs sender : `${reqUser.username}`, 
       checktoken : true,
     }); ////감지해서 받으면 모달 띄우기 -> 그 모달에서 "수락" 누르면 join-room 으로 해주시면 됩니다. password는 기존처럼 빈문자 주시면 되구요~
     return {success : true, checktoken:true};
