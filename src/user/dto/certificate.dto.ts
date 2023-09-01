@@ -1,4 +1,4 @@
-import { IsNumber } from "class-validator"
+import { IsNumber, MaxLength } from "class-validator"
 
 export class CertificateDto {
 	username: string
