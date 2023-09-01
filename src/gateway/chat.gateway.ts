@@ -112,9 +112,12 @@ export class ChatGateway
       this.logger.error('1. validate_token fail in chat', error);
       return { checktoken:false };
     }
+    console.log("handleConnection friendlist - ", payload);
     const socketList = await this.friendService.getFriendChatSocket(
       payload.id,
     );
+    if (!socketList || socketList.length === 0)
+      return ;
     socket.broadcast.to(socketList).emit('ft_trigger', {
       success:true,
       checktoken:true,
@@ -1016,7 +1019,11 @@ export class ChatGateway
     }
     const user = await this.userService.getUserByUserId(payload.id);
     // console.log("user - ", user);///
-    
+    if (user==undefined)
+    {
+      console.log("token err in main friendlist");
+      return {checktoken:false};
+    }
     let ret = await this.friendService.findFriendList(user);
     // console.log(ret);
     let _return = [];
