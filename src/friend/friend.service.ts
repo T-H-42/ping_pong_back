@@ -112,7 +112,7 @@ export class FriendService {
       console.log("test getFriendChatSocket", id);
       if (!id || id == undefined)
       {
-
+        return ;
       }
       const user = await this.friendRepository.query(`select * from "user" where id=${id}`);
       console.log("test getFriendChatSocket2", user);
