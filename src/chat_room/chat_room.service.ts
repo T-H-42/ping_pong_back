@@ -461,6 +461,13 @@ export class ChatRoomService {
         await this.chatRoomRepository.query(query, values);
     }
 
+    async checkRoomStatus(roomName : string)
+    {
+        const query = `select * from "chat_room" where "index" = $1`;
+        const values = [roomName];
+        return (await this.chatRoomRepository.query(query,values));
+    }
+
     async catchErrorRoom(sockid:string)
     {
         console.log("=========== roomTokenError");
@@ -500,6 +507,8 @@ export class ChatRoomService {
         const room = await this.chatRoomRepository.query(query);
         return room;
     }
+
+
 
     // async preventInjection(userInputAny : any)
     // {

@@ -304,7 +304,6 @@ export class ChatGateway
     if (await this.chatRoomService.isValidPassword(_Data["roomName"], _Data["password"]) === false) ///create-room 시 비어있는 password와 양식이 같도록!
       return { success: false, faillog : `비밀번호가 일치하지 않습니다.`,checktoken:true}; ///password err _Data["roomName"]
 
-
     const requestUser = await this.userService.getUserByUserId(
       payload.id,
     ); // 유저의 이름으로 유저 id를 가져옴 join, create 등에서 id로 쓰고 싶었기 때문.
@@ -725,7 +724,7 @@ export class ChatGateway
         checktoken:true,
       };
     socket.broadcast.to(_Data["roomName"]).emit('ft_message', {
-      username: `${requestUser.username}(Admin)`,
+      username: `${requestUser.username}`,
       checktoken:true,
       message: `${requestUser.username}님이 ${targetUser.username}님을 차단하였습니다.`,
     });
@@ -1063,9 +1062,17 @@ export class ChatGateway
       console.log('payloaderr in msg');
       return {checktoken:false,faillog:`Token 만료입니다. 다시 로그인 해주세요.`,success : false};
     }
-    const targetUser = await this.userService.getUserByUserName(
+    const targetUser = await this.userService.getUserByUserIntraId(
       _Data["targetUser"],
       );
+
+    const room = await this.chatRoomService.checkRoomStatus(_Data["roomName"]);
+    if (!room || room.length === 0)
+      return {success : false, faillog : `없는 방입니다.`,checktoken:true};
+    if (room[0].room_stat ===1) 
+    {
+      return {success : false, faillog : `비밀번호 방은 초대할 수 없습니다.`,checktoken:true};
+    }
     if (targetUser.status != 1)
     {
       let log = ["오프라인","가능","다른 유저와 DM 중", "채팅 중", "게임 중"];
