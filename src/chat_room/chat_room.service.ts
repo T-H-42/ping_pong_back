@@ -257,8 +257,9 @@ export class ChatRoomService {
     {
         // 1. admin과 chat_user가 합쳐졌다고 가정한 쿼리 (right - 0,1,2 -> 0 == just, 1 == admin, 2 == Owner 이런 식의 약속 필요하긴함)
         // const query = `select * from "chat_user" where "index" = '${roomName}';`;
-        const query = `select "user"."username", "A"."right" from (select * from "chat_user" where "index" = $1) as "A" left join "user" on "user"."id" = "A"."user_id";`;
+        const query = `select "user"."username", "A"."right" , "user"."intra_id" from (select * from "chat_user" where "index" = $1) as "A" left join "user" on "user"."id" = "A"."user_id";`;
         const values = [roomName];
+        
         return await this.chatRoomRepository.query(query,values);
 
         // select * from "chat_user" where "index" = '${roomName}';
