@@ -37,38 +37,6 @@ export class UserService {
     private readonly httpService: HttpService,
   ) {}
 
-
-  async adminSignIn(username:string, res: Response) {
-    let user = await this.userRepository.findOne({
-      where: {
-        username,
-      },
-    });
-    if (!user) {
-      const _user = await this.userRepository.createUser(
-        username,
-        username + '@Dummy.kr',
-      );
-      user = await this.userRepository.findOne({
-        where: {
-          username,
-        },
-      });
-    }
-    const payload = {
-      username,
-      id: user.id,
-    };
-    const accessToken = await this.jwtService.sign(payload);
-    const responseWithToken = await this.setToken(user, res);
-    // console.log(responseWithToken); ///리턴 전 객체의 jwt가 있으면 토큰 세팅이 되어 있는 상홤.
-    return responseWithToken.send({
-      two_factor_authentication_status: false,
-      username: user.username,
-      accessToken,
-    });
-  }
-
   async tokenValidation(token: string)
   {
     try {
